@@ -12,26 +12,7 @@ CREATE DATABASE IF NOT EXISTS `hostel_complaint_db`
 USE `hostel_complaint_db`;
 
 -- Drop existing tables in reverse dependency order to avoid foreign key errors
-SET FOREIGN_KEY_CHECKS = 0;
-DROP TABLE IF EXISTS `audit_logs`;
-DROP TABLE IF EXISTS `complaint_feedback`;
-DROP TABLE IF EXISTS `notifications`;
-DROP TABLE IF EXISTS `complaint_attachments`;
-DROP TABLE IF EXISTS `complaint_priority_history`;
-DROP TABLE IF EXISTS `complaint_history`;
-DROP TABLE IF EXISTS `complaint_responses`;
-DROP TABLE IF EXISTS `complaint_assignments`;
-DROP TABLE IF EXISTS `complaint_affected_hostels`;
-DROP TABLE IF EXISTS `complaints`;
-DROP TABLE IF EXISTS `complaint_categories`;
-DROP TABLE IF EXISTS `hostel_wardens`;
-DROP TABLE IF EXISTS `staff`;
-DROP TABLE IF EXISTS `wardens`;
-DROP TABLE IF EXISTS `students`;
-DROP TABLE IF EXISTS `rooms`;
-DROP TABLE IF EXISTS `hostels`;
-DROP TABLE IF EXISTS `users`;
-SET FOREIGN_KEY_CHECKS = 1;
+
 
 -- ----------------------------------------------------------------------------
 -- Table 1: users (Master Authentication & User Profile Table)

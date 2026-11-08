@@ -5,7 +5,7 @@ Database Access & Connection Pooling Layer (db.py)
 Uses mysql-connector-python with MySQLConnectionPool for high-throughput,
 leak-safe database interaction via context managers.
 """
-
+import certifi
 import time
 import logging
 from contextlib import contextmanager
@@ -34,6 +34,8 @@ def init_db_pool():
                 user=Config.DB_USER,
                 password=Config.DB_PASSWORD,
                 database=Config.DB_NAME,
+                ssl_ca=certifi.where(),
+                 ssl_verify_cert=True,
                 autocommit=False,  # Enforce explicit transaction control
                 charset="utf8mb4",
                 collation="utf8mb4_unicode_ci"

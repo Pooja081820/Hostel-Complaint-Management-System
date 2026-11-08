@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Student Registration - Hostel Complaint Management System{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 800px; margin: 1.5rem auto;">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title" style="font-size:1.4rem;">Student Registration</h1>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.25rem;">
+                Create your student profile and link your allocated hostel block and room.
+            </p>
+        </div>
+        <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-secondary">Back to Sign In</a>
+    </div>
+
+    <form action="{{ url_for('auth.register') }}" method="POST" id="student-registration-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <h3 style="font-size:1rem; font-weight:600; color:var(--accent-cyan); margin-bottom:1rem; text-transform:uppercase; letter-spacing:0.05em;">
+            1. Personal & Academic Credentials
+        </h3>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="first_name" class="form-label">First Name *</label>
+                <input type="text" id="first_name" name="first_name" class="form-control" 
+                       value="{{ form.first_name if form else '' }}" required placeholder="e.g. Rahul">
+            </div>
+
+            <div class="form-group">
+                <label for="last_name" class="form-label">Last Name *</label>
+                <input type="text" id="last_name" name="last_name" class="form-control" 
+                       value="{{ form.last_name if form else '' }}" required placeholder="e.g. Verma">
+            </div>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="email" class="form-label">University Email * (@nitp.ac.in)</label>
+                <input type="email" id="email" name="email" class="form-control" 
+                       value="{{ form.email if form else '' }}" required placeholder="yourname@nitp.ac.in"
+                       pattern="[a-zA-Z0-9._%+\-]+@nitp\.ac\.in" title="Only @nitp.ac.in email addresses are permitted.">
+                <small style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:0.25rem;">
+                    ⚠️ Only institutional <strong>@nitp.ac.in</strong> email addresses are accepted for student registration.
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">Password * (Min 8 characters)</label>
+                <input type="password" id="password" name="password" class="form-control" 
+                       required placeholder="Create a strong password" minlength="8">
+            </div>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="phone" class="form-label">Mobile Contact Number *</label>
+                <input type="tel" id="phone" name="phone" class="form-control" 
+                       value="{{ form.phone if form else '' }}" required placeholder="e.g. 9876543210" pattern="[0-9]{10,15}">
+            </div>
+
+            <div class="form-group">
+                <label for="enrollment_number" class="form-label">Enrollment / Roll Number *</label>
+                <input type="text" id="enrollment_number" name="enrollment_number" class="form-control" 
+                       value="{{ form.enrollment_number if form else '' }}" required placeholder="e.g. 2024CSB101">
+            </div>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="branch" class="form-label">Academic Department / Branch *</label>
+                <input type="text" id="branch" name="branch" class="form-control" 
+                       value="{{ form.branch if form else '' }}" required placeholder="e.g. Computer Science & Engineering">
+            </div>
+
+            <div class="form-group">
+                <label for="academic_year" class="form-label">Academic Year *</label>
+                <select id="academic_year" name="academic_year" class="form-select" required>
+                    <option value="1">1st Year (Freshman)</option>
+                    <option value="2">2nd Year (Sophomore)</option>
+                    <option value="3" selected>3rd Year (Junior)</option>
+                    <option value="4">4th Year (Senior)</option>
+                    <option value="5">5th Year (Postgraduate)</option>
+                </select>
+            </div>
+        </div>
+
+        <h3 style="font-size:1rem; font-weight:600; color:var(--accent-cyan); margin:1.5rem 0 1rem 0; text-transform:uppercase; letter-spacing:0.05em;">
+            2. Residential Hostel Allocation
+        </h3>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="hostel_id" class="form-label">Allocated Hostel Block *</label>
+                <select id="hostel_id" name="hostel_id" class="form-select" required onchange="fetchRoomsForHostel(this.value)">
+                    <option value="">-- Choose Hostel Block --</option>
+                    {% for h in hostels %}
+                        <option value="{{ h.hostel_id }}">
+                            {{ h.name }} ({{ h.code }}) - {{ h.type|capitalize }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="room_number" class="form-label">Enter Room Number *</label>
+                <input type="text" id="room_number" name="room_number" class="form-control" 
+                       value="{{ form.room_number if form and form.room_number else '' }}" 
+                       placeholder="e.g. 101, 204, 302" required maxlength="10" oninput="handleManualRoomInput(this.value)">
+                <small id="room-helper" style="font-size:0.75rem; color:var(--text-muted); display:block; margin-top:0.25rem;">
+                    Type your allocated room number, or select from pre-configured rooms below.
+                </small>
+            </div>
+        </div>
+
+        
+
+        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-glass); border-radius:var(--radius-sm); padding:0.85rem; margin-top:1.5rem; font-size:0.8rem; color:var(--text-muted);">
+            ℹ️ <strong>Note:</strong> Warden and Maintenance Staff accounts are registered directly by the Campus Facility Administrator. Students can register here.
+        </div>
+
+        <div style="margin-top:1.5rem; display:flex; justify-content:flex-end; gap:1rem;">
+            <a href="{{ url_for('auth.login') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary" id="btn-register-submit">
+                Complete Registration
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function fetchRoomsForHostel(hostelId) {
+        const roomSelect = document.getElementById('room_id');
+        const helper = document.getElementById('room-helper');
+        
+        if (!hostelId) {
+            roomSelect.innerHTML = '<option value="">-- Choose Hostel First to browse existing rooms --</option>';
+            return;
+        }
+
+        roomSelect.innerHTML = '<option value="">Loading rooms...</option>';
+        helper.textContent = 'Querying available rooms for this block...';
+
+        try {
+            const response = await fetch(`/auth/api/rooms/${hostelId}`);
+            const data = await response.json();
+            
+            if (data.success && data.rooms.length > 0) {
+                roomSelect.innerHTML = '<option value="">-- Or Select from Existing Configured Rooms --</option>';
+                data.rooms.forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r.room_id;
+                    opt.dataset.roomNumber = r.room_number;
+                    opt.textContent = `Room ${r.room_number} (Floor ${r.floor_number}) - [Occupancy: ${r.current_occupancy}/${r.capacity}]`;
+                    roomSelect.appendChild(opt);
+                });
+                helper.textContent = `Found ${data.rooms.length} configured rooms. You can select one or type your room number above.`;
+            } else {
+                roomSelect.innerHTML = '<option value="">No pre-configured rooms (enter room number directly above)</option>';
+                helper.textContent = 'Please enter your room number directly in the field above.';
+            }
+        } catch (err) {
+            console.error('Room fetch error:', err);
+            roomSelect.innerHTML = '<option value="">Enter room number directly above</option>';
+        }
+    }
+
+    function handleSelectRoom(selectEl) {
+        const selectedOpt = selectEl.options[selectEl.selectedIndex];
+        if (selectedOpt && selectedOpt.dataset.roomNumber) {
+            document.getElementById('room_number').value = selectedOpt.dataset.roomNumber;
+        }
+    }
+
+    function handleManualRoomInput(val) {
+        // If user manually types a room number, reset select dropdown to let backend match or create
+        const roomSelect = document.getElementById('room_id');
+        let matched = false;
+        for (let i = 0; i < roomSelect.options.length; i++) {
+            if (roomSelect.options[i].dataset && roomSelect.options[i].dataset.roomNumber === val.trim()) {
+                roomSelect.selectedIndex = i;
+                matched = true;
+                break;
+            }
+        }
+        if (!matched && roomSelect.options.length > 0) {
+            roomSelect.value = "";
+        }
+    }
+</script>
+{% endblock %}

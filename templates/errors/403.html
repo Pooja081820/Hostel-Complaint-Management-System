@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}403 Forbidden - Access Denied{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 650px; margin: 4rem auto; text-align: center; padding: 3rem 2rem;">
+    <div style="font-size: 3.5rem; margin-bottom: 1rem;">🚫</div>
+    <h1 style="font-size: 2rem; font-weight: 700; color: var(--status-rejected); margin-bottom: 0.5rem;">
+        403 - Access Forbidden
+    </h1>
+    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+        You do not possess the required security privileges to access this resource or administrative operation.
+    </p>
+
+    {% if required_roles %}
+        <div style="background: rgba(230, 57, 70, 0.1); border: 1px solid rgba(230, 57, 70, 0.3); border-radius: var(--radius-sm); padding: 0.75rem; margin-bottom: 1.5rem; display: inline-block;">
+            <span style="font-size: 0.85rem; color: #ff6b6b;">
+                Required Clearance Role(s): <strong>{{ required_roles|join(', ')|upper }}</strong>
+            </span>
+        </div>
+    {% endif %}
+
+    <div>
+        <a href="/" class="btn btn-primary">Return to Safety</a>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-secondary" style="margin-left: 0.5rem;">Switch Account</a>
+    </div>
+</div>
+{% endblock %}

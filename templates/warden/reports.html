@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}SLA & Resolution Reports - HostelCare Warden{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:1.75rem;">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title" style="font-size:1.4rem;">📊 Hostel Resolution & SLA Performance Reports</h1>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.25rem;">
+                Real-time operational turnaround analytics across your supervised residential blocks.
+            </p>
+        </div>
+        <div style="display:flex; gap:0.5rem;">
+            <a href="{{ url_for('warden.export_reports_csv') }}" class="btn btn-sm btn-primary">📥 Export CSV</a>
+            <a href="{{ url_for('warden.dashboard') }}" class="btn btn-sm btn-secondary">&larr; Dashboard</a>
+        </div>
+    </div>
+
+    {% if reports and reports|length > 0 %}
+        <!-- Hostel Performance Cards Grid -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1.25rem; margin-bottom:2rem;">
+            {% for r in reports %}
+                <div class="card" style="padding:1.25rem; background:rgba(11, 19, 43, 0.55); border-top:4px solid var(--accent-cyan);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                        <h3 style="font-size:1.1rem; color:#fff; font-weight:600;">{{ r.hostel_name }}</h3>
+                        <span class="badge badge-assigned">{{ r.hostel_code }}</span>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; font-size:0.85rem;">
+                        <div>
+                            <span style="color:var(--text-muted); display:block; font-size:0.75rem;">Total Logged</span>
+                            <strong style="font-size:1.2rem; color:#fff;">{{ r.total_complaints or 0 }}</strong>
+                        </div>
+                        <div>
+                            <span style="color:var(--text-muted); display:block; font-size:0.75rem;">Resolution Rate</span>
+                            <strong style="font-size:1.2rem; color:var(--status-resolved);">{{ r.resolution_rate or 0 }}%</strong>
+                        </div>
+                        <div>
+                            <span style="color:var(--text-muted); display:block; font-size:0.75rem;">Avg Turnaround</span>
+                            <strong style="font-size:1.1rem; color:var(--accent-cyan);">{{ r.avg_turnaround_hours or 0 }} Hours</strong>
+                        </div>
+                        <div>
+                            <span style="color:var(--text-muted); display:block; font-size:0.75rem;">Student Rating</span>
+                            <strong style="font-size:1.1rem; color:#ffd166;">
+                                {{ r.avg_satisfaction_rating or 'N/A' }} ★
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Comparative Performance Table -->
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Hostel Block</th>
+                        <th>Code</th>
+                        <th>Total Logged</th>
+                        <th>Resolved</th>
+                        <th>Overdue (SLA Breached)</th>
+                        <th>Resolution %</th>
+                        <th>Avg Turnaround Time</th>
+                        <th>Avg Rating</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in reports %}
+                        <tr>
+                            <td style="font-weight:600; color:#fff;">{{ r.hostel_name }}</td>
+                            <td><span class="badge badge-assigned">{{ r.hostel_code }}</span></td>
+                            <td>{{ r.total_complaints or 0 }}</td>
+                            <td style="color:var(--status-resolved); font-weight:600;">{{ r.resolved_count or 0 }}</td>
+                            <td>
+                                {% if r.overdue_count and r.overdue_count > 0 %}
+                                    <span style="color:var(--prio-critical); font-weight:700;">{{ r.overdue_count }}</span>
+                                {% else %}
+                                    <span style="color:var(--text-muted);">0</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong style="color:{{ 'var(--status-resolved)' if r.resolution_rate and r.resolution_rate >= 70 else 'var(--status-review)' }};">
+                                    {{ r.resolution_rate or 0 }}%
+                                </strong>
+                            </td>
+                            <td>{{ r.avg_turnaround_hours or 'N/A' }} Hours</td>
+                            <td style="color:#ffd166; font-weight:600;">
+                                {{ r.avg_satisfaction_rating or 'Unrated' }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p style="color:var(--text-muted); font-size:0.9rem; text-align:center; padding:3rem 0;">
+            No performance metrics generated yet. Once complaints are processed and resolved, turnaround analytics will populate here.
+        </p>
+    {% endif %}
+</div>
+{% endblock %}

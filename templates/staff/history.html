@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Completed Work Orders - HostelCare Staff{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title" style="font-size:1.4rem;">🏁 Completed Work Orders History</h1>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.25rem;">
+                Historical log of resolved maintenance tickets, resolution turnaround times, and student feedback ratings.
+            </p>
+        </div>
+        <a href="{{ url_for('staff.dashboard') }}" class="btn btn-sm btn-secondary">&larr; Back to Task Queue</a>
+    </div>
+
+    {% if tasks and tasks|length > 0 %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Ticket #</th>
+                        <th>Hostel / Rm</th>
+                        <th>Category</th>
+                        <th>Task Summary</th>
+                        <th>Assigned</th>
+                        <th>Completed</th>
+                        <th>Turnaround</th>
+                        <th>Student Rating</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tasks %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('staff.task_detail', assignment_id=t.assignment_id) }}" style="font-family:monospace; font-weight:700; color:var(--accent-cyan);">
+                                    {{ t.ticket_number }}
+                                </a>
+                            </td>
+                            <td>
+                                <strong style="color:#fff;">{{ t.hostel_code }}</strong>
+                                <small style="color:var(--text-muted); display:block;">Rm {{ t.room_number or 'Common Area' }}</small>
+                            </td>
+                            <td>{{ t.category_name }}</td>
+                            <td>
+                                <div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text-secondary);">
+                                    {{ t.title }}
+                                </div>
+                            </td>
+                            <td style="font-size:0.8rem; color:var(--text-muted);">
+                                {{ t.assigned_at.strftime('%b %d, %H:%M') if t.assigned_at else '' }}
+                            </td>
+                            <td style="font-size:0.8rem; color:var(--text-muted);">
+                                {{ t.completed_at.strftime('%b %d, %H:%M') if t.completed_at else '' }}
+                            </td>
+                            <td>
+                                <span class="badge badge-assigned">{{ t.turnaround_hours or 0 }} Hours</span>
+                            </td>
+                            <td>
+                                {% if t.student_rating %}
+                                    <span style="color:#ffd166; font-weight:700; font-size:0.95rem;">
+                                        {{ "★" * t.student_rating }}
+                                    </span>
+                                    {% if t.student_feedback %}
+                                        <small style="color:var(--text-muted); display:block; font-style:italic; max-width:140px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                            "{{ t.student_feedback }}"
+                                        </small>
+                                    {% endif %}
+                                {% else %}
+                                    <span style="color:var(--text-muted); font-size:0.75rem;">Unrated</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div style="text-align:center; padding:3rem 1rem; color:var(--text-muted);">
+            <div style="font-size:2.5rem; margin-bottom:0.75rem;">📂</div>
+            <h3 style="color:#fff; font-size:1.1rem; margin-bottom:0.5rem;">No Completed Tasks Logged Yet</h3>
+            <p style="font-size:0.9rem;">Once you finish work on assigned tasks, your resolution track record will appear here.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

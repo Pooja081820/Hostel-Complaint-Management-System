@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In - Hostel Complaint Management System{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <!-- Left Hero Brand Panel -->
+    <div class="auth-hero">
+        <div>
+            <div class="brand-logo" style="margin-bottom: 2rem;">
+                <div class="brand-icon">H</div>
+                <span style="font-size:1.5rem;">HostelCare</span>
+            </div>
+            <h1 style="font-size: 2rem; font-weight: 700; line-height: 1.2; margin-bottom: 1rem; color:#fff;">
+                Campus Living,<br><span style="color:var(--accent-cyan);">Resolved Faster.</span>
+            </h1>
+            <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 1.5rem;">
+                A centralized, transparent complaint resolution platform for university residential hostels.
+                Real-time tracking, SLA escalations, and automated maintenance workflows.
+            </p>
+        </div>
+
+        <div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+                ⚡ <strong>Quick Demo Login</strong> (Click to auto-fill credentials):
+            </p>
+            <div class="demo-account-pills">
+                <button type="button" class="demo-pill" onclick="fillCreds('student.rahul@hostel.edu', 'password123')">🎓 Student</button>
+                <button type="button" class="demo-pill" onclick="fillCreds('warden.rajesh@hostel.edu', 'password123')">🛡️ Warden</button>
+                <button type="button" class="demo-pill" onclick="fillCreds('staff.suresh@hostel.edu', 'password123')">🔧 Staff</button>
+                <button type="button" class="demo-pill" onclick="fillCreds('admin.sharma@hostel.edu', 'password123')">⚙️ Admin</button>
+            </div>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.75rem; line-height: 1.4;">
+                🛡️ <em>Warden and Maintenance Staff accounts are registered by the Administrator. Only students self-register.</em>
+            </p>
+        </div>
+    </div>
+
+    <!-- Right Login Form -->
+    <div class="auth-form-card">
+        <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; color: #fff;">Welcome Back</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem;">
+            Sign in to access your complaints and operational dashboard.
+        </p>
+
+        <form action="{{ url_for('auth.login') }}" method="POST" id="login-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label for="input-email" class="form-label">Email Address</label>
+                <input type="email" id="input-email" name="email" class="form-control" 
+                       value="{{ email or '' }}" placeholder="username@hostel.edu" required autocomplete="email" autofocus>
+            </div>
+
+            <div class="form-group">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label for="input-password" class="form-label">Password</label>
+                </div>
+                <input type="password" id="input-password" name="password" class="form-control" 
+                       placeholder="Enter your password" required autocomplete="current-password">
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block" id="btn-login-submit" style="margin-top: 1.5rem;">
+                Sign In to Dashboard
+            </button>
+        </form>
+
+        <div style="margin-top: 2rem; text-align: center; font-size: 0.9rem; color: var(--text-muted);">
+            Are you a new resident student? 
+            <a href="{{ url_for('auth.register') }}" style="font-weight: 600;">Register Here</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function fillCreds(email, password) {
+        document.getElementById('input-email').value = email;
+        document.getElementById('input-password').value = password;
+        const btn = document.getElementById('btn-login-submit');
+        btn.style.boxShadow = '0 0 25px rgba(72, 202, 228, 0.7)';
+        setTimeout(() => {
+            btn.style.boxShadow = '';
+        }, 600);
+    }
+</script>
+{% endblock %}

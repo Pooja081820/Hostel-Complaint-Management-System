@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}My Complaints - HostelCare{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title" style="font-size:1.4rem;">My Complaints Registry</h1>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.25rem;">
+                Track resolution status, technician assignment, and history for your room complaints.
+            </p>
+        </div>
+        <a href="{{ url_for('student.submit_complaint') }}" class="btn btn-primary" id="btn-lodge-complaint-top">
+            + Lodge Complaint
+        </a>
+    </div>
+
+    <!-- Filter Form -->
+    <form method="GET" action="{{ url_for('student.my_complaints') }}" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) auto; gap:1rem; align-items:end; margin-bottom:1.5rem; background:rgba(11, 19, 43, 0.4); padding:1rem; border-radius:var(--radius-sm); border:1px solid var(--border-glass);">
+        <div class="form-group" style="margin-bottom:0;">
+            <label for="status" class="form-label">Filter by Status</label>
+            <select name="status" id="status" class="form-select">
+                <option value="all" {% if current_status == 'all' %}selected{% endif %}>All Statuses</option>
+                <option value="Submitted" {% if current_status == 'Submitted' %}selected{% endif %}>Submitted</option>
+                <option value="Under Review" {% if current_status == 'Under Review' %}selected{% endif %}>Under Review</option>
+                <option value="Assigned" {% if current_status == 'Assigned' %}selected{% endif %}>Assigned</option>
+                <option value="In Progress" {% if current_status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Awaiting Verification" {% if current_status == 'Awaiting Verification' %}selected{% endif %}>Awaiting Verification</option>
+                <option value="Resolved" {% if current_status == 'Resolved' %}selected{% endif %}>Resolved</option>
+                <option value="Reopened" {% if current_status == 'Reopened' %}selected{% endif %}>Reopened</option>
+                <option value="Rejected" {% if current_status == 'Rejected' %}selected{% endif %}>Rejected</option>
+                <option value="Cancelled" {% if current_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+            </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+            <label for="category" class="form-label">Filter by Category</label>
+            <select name="category" id="category" class="form-select">
+                <option value="all" {% if current_category == 'all' %}selected{% endif %}>All Categories</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.category_id }}" {% if current_category|string == cat.category_id|string %}selected{% endif %}>
+                        {{ cat.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+            <label for="q" class="form-label">Search Keywords</label>
+            <input type="text" name="q" id="q" class="form-control" placeholder="Search ticket # or title..." value="{{ search_query }}">
+        </div>
+
+        <div style="display:flex; gap:0.5rem;">
+            <button type="submit" class="btn btn-secondary">Filter</button>
+            <a href="{{ url_for('student.my_complaints') }}" class="btn btn-secondary" title="Reset Filters">Reset</a>
+        </div>
+    </form>
+
+    <!-- Complaints Registry Table -->
+    {% if complaints and complaints|length > 0 %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Ticket #</th>
+                        <th>Category</th>
+                        <th>Title</th>
+                        <th>Hostel / Room</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in complaints %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('student.complaint_detail', complaint_id=c.complaint_id) }}" style="font-family:monospace; font-weight:700; color:var(--accent-cyan);">
+                                    {{ c.ticket_number }}
+                                </a>
+                            </td>
+                            <td>{{ c.category_name }}</td>
+                            <td>
+                                <div style="font-weight:500; color:#fff; max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                    {{ c.title }}
+                                </div>
+                            </td>
+                            <td>
+                                <span style="font-size:0.85rem; color:var(--text-secondary);">
+                                    {{ c.hostel_code }} - {{ c.room_number or 'Common Area' }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge-prio-{{ c.priority|lower }}">● {{ c.priority }}</span>
+                            </td>
+                            <td>
+                                {% set s_slug = c.status|lower|replace(' ', '-') %}
+                                <span class="badge badge-{{ 'review' if s_slug == 'under-review' else ('progress' if s_slug == 'in-progress' else ('verify' if s_slug == 'awaiting-verification' else s_slug)) }}">
+                                    {{ c.status }}
+                                </span>
+                            </td>
+                            <td style="font-size:0.8rem; color:var(--text-muted);">
+                                {{ c.created_at.strftime('%b %d, %Y') if c.created_at else '' }}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('student.complaint_detail', complaint_id=c.complaint_id) }}" class="btn btn-sm btn-secondary" style="padding:0.25rem 0.6rem; font-size:0.8rem;">
+                                    View Details
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div style="text-align:center; padding:3rem 1rem; color:var(--text-muted);">
+            <div style="font-size:2.5rem; margin-bottom:0.75rem;">📂</div>
+            <h3 style="color:#fff; font-size:1.1rem; margin-bottom:0.5rem;">No Matching Complaints Found</h3>
+            <p style="font-size:0.9rem;">Try adjusting your filter criteria or search keyword.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

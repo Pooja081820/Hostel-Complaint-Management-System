@@ -1,0 +1,16 @@
+
+# Private environment settings
+.env
+.env.*
+
+# Allow example environment file
+!.env.example
+
+# Python generated files
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Local development files
+*.log

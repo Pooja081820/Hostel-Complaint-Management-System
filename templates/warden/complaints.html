@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Complaint Triage - HostelCare Warden{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title" style="font-size:1.4rem;">Warden Complaint Triage Registry</h1>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.25rem;">
+                Review student submissions, allocate maintenance technicians, and verify completed work.
+            </p>
+        </div>
+        <a href="{{ url_for('warden.dashboard') }}" class="btn btn-sm btn-secondary">&larr; Back to Command</a>
+    </div>
+
+    <!-- Filter Form -->
+    <form method="GET" action="{{ url_for('warden.complaints') }}" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) auto; gap:1rem; align-items:end; margin-bottom:1.5rem; background:rgba(11, 19, 43, 0.4); padding:1rem; border-radius:var(--radius-sm); border:1px solid var(--border-glass);">
+        <!-- Hostel Filter -->
+        <div class="form-group" style="margin-bottom:0;">
+            <label for="hostel_id" class="form-label">Hostel Block</label>
+            <select name="hostel_id" id="hostel_id" class="form-select">
+                <option value="all">All My Hostels</option>
+                {% for h in hostels %}
+                    <option value="{{ h.hostel_id }}" {% if filters.hostel_id|string == h.hostel_id|string %}selected{% endif %}>
+                        {{ h.name }} ({{ h.code }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Status Filter -->
+        <div class="form-group" style="margin-bottom:0;">
+            <label for="status" class="form-label">Status</label>
+            <select name="status" id="status" class="form-select">
+                <option value="all" {% if filters.status == 'all' %}selected{% endif %}>All Statuses</option>
+                <option value="Submitted" {% if filters.status == 'Submitted' %}selected{% endif %}>Submitted</option>
+                <option value="Under Review" {% if filters.status == 'Under Review' %}selected{% endif %}>Under Review</option>
+                <option value="Assigned" {% if filters.status == 'Assigned' %}selected{% endif %}>Assigned</option>
+                <option value="In Progress" {% if filters.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Awaiting Verification" {% if filters.status == 'Awaiting Verification' %}selected{% endif %}>Awaiting Verification</option>
+                <option value="Resolved" {% if filters.status == 'Resolved' %}selected{% endif %}>Resolved</option>
+                <option value="Reopened" {% if filters.status == 'Reopened' %}selected{% endif %}>Reopened</option>
+                <option value="Rejected" {% if filters.status == 'Rejected' %}selected{% endif %}>Rejected</option>
+            </select>
+        </div>
+
+        <!-- Priority Filter -->
+        <div class="form-group" style="margin-bottom:0;">
+            <label for="priority" class="form-label">Priority</label>
+            <select name="priority" id="priority" class="form-select">
+                <option value="all" {% if filters.priority == 'all' %}selected{% endif %}>All Priorities</option>
+                <option value="Critical" {% if filters.priority == 'Critical' %}selected{% endif %}>Critical</option>
+                <option value="High" {% if filters.priority == 'High' %}selected{% endif %}>High</option>
+                <option value="Medium" {% if filters.priority == 'Medium' %}selected{% endif %}>Medium</option>
+                <option value="Low" {% if filters.priority == 'Low' %}selected{% endif %}>Low</option>
+            </select>
+        </div>
+
+        <!-- Category Filter -->
+        <div class="form-group" style="margin-bottom:0;">
+            <label for="category_id" class="form-label">Category</label>
+            <select name="category_id" id="category_id" class="form-select">
+                <option value="all" {% if filters.category_id == 'all' %}selected{% endif %}>All Categories</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.category_id }}" {% if filters.category_id|string == cat.category_id|string %}selected{% endif %}>
+                        {{ cat.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Search Input -->
+        <div class="form-group" style="margin-bottom:0;">
+            <label for="q" class="form-label">Keyword Search</label>
+            <input type="text" name="q" id="q" class="form-control" placeholder="Ticket #, title, student..." value="{{ filters.search }}">
+        </div>
+
+        <div style="display:flex; gap:0.5rem;">
+            <button type="submit" class="btn btn-secondary">Filter</button>
+            <a href="{{ url_for('warden.complaints') }}" class="btn btn-secondary" title="Reset Filters">Reset</a>
+        </div>
+    </form>
+
+    <!-- Complaints Registry Table -->
+    {% if complaints and complaints|length > 0 %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Ticket #</th>
+                        <th>Hostel / Rm</th>
+                        <th>Student</th>
+                        <th>Category & Title</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Assigned Staff</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in complaints %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('warden.complaint_detail', complaint_id=c.complaint_id) }}" style="font-family:monospace; font-weight:700; color:var(--accent-cyan);">
+                                    {{ c.ticket_number }}
+                                </a>
+                                {% if c.is_overdue %}
+                                    <span style="font-size:0.65rem; color:#ff4d6d; display:block; font-weight:700;">⚠️ OVERDUE</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span style="color:#fff; font-weight:600;">{{ c.hostel_code }}</span>
+                                <small style="color:var(--text-muted); display:block;">Rm {{ c.room_number or 'Common' }}</small>
+                            </td>
+                            <td>
+                                <span style="font-size:0.85rem; color:var(--text-secondary); display:block;">{{ c.student_name }}</span>
+                                <small style="color:var(--text-muted);">{{ c.enrollment_number }}</small>
+                            </td>
+                            <td>
+                                <span style="font-size:0.75rem; text-transform:uppercase; color:var(--accent-cyan); display:block; font-weight:600;">
+                                    {{ c.category_name }}
+                                </span>
+                                <div style="font-weight:500; color:#fff; max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                    {{ c.title }}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge-prio-{{ c.priority|lower }}">● {{ c.priority }}</span>
+                            </td>
+                            <td>
+                                {% set s_slug = c.status|lower|replace(' ', '-') %}
+                                <span class="badge badge-{{ 'review' if s_slug == 'under-review' else ('progress' if s_slug == 'in-progress' else ('verify' if s_slug == 'awaiting-verification' else s_slug)) }}">
+                                    {{ c.status }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if c.staff_name %}
+                                    <span style="font-size:0.85rem; color:#fff;">🔧 {{ c.staff_name }}</span>
+                                {% else %}
+                                    <span style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">Unassigned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('warden.complaint_detail', complaint_id=c.complaint_id) }}" class="btn btn-sm btn-secondary" style="padding:0.25rem 0.6rem; font-size:0.8rem;">
+                                    Manage
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div style="text-align:center; padding:3rem 1rem; color:var(--text-muted);">
+            <div style="font-size:2.5rem; margin-bottom:0.75rem;">📂</div>
+            <h3 style="color:#fff; font-size:1.1rem; margin-bottom:0.5rem;">No Complaints Found</h3>
+            <p style="font-size:0.9rem;">No complaints match the selected filter criteria for your supervised hostels.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

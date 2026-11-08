@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}{{ complaint.ticket_number }} - Ticket Details - HostelCare{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:1.5rem;">
+    <a href="{{ url_for('student.my_complaints') }}" class="btn btn-sm btn-secondary">&larr; Back to Complaints</a>
+</div>
+
+<!-- Main Details Card -->
+<div class="card" style="margin-bottom:2rem;">
+    <!-- Card Header -->
+    <div class="card-header" style="flex-wrap:wrap; gap:1rem;">
+        <div>
+            <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                <h1 style="font-size:1.6rem; font-weight:700; color:#fff; font-family:monospace;">
+                    {{ complaint.ticket_number }}
+                </h1>
+                {% set s_slug = complaint.status|lower|replace(' ', '-') %}
+                <span class="badge badge-{{ 'review' if s_slug == 'under-review' else ('progress' if s_slug == 'in-progress' else ('verify' if s_slug == 'awaiting-verification' else s_slug)) }}">
+                    {{ complaint.status }}
+                </span>
+                <span class="badge-prio-{{ complaint.priority|lower }}">● {{ complaint.priority }} Priority</span>
+                {% if complaint.is_overdue %}
+                    <span class="badge badge-rejected" style="animation:pulseGlow 1.5s infinite;">⚠️ OVERDUE</span>
+                {% endif %}
+            </div>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.35rem;">
+                Category: <strong>{{ complaint.category_name }}</strong> &bull; 
+                Hostel: <strong>{{ complaint.hostel_name }}</strong> (Room {{ complaint.room_number or 'Common Area' }}) &bull; 
+                Lodged: {{ complaint.created_at.strftime('%b %d, %Y at %H:%M') if complaint.created_at else '' }}
+            </p>
+        </div>
+
+        <!-- Quick Status Actions -->
+        <div>
+            {% if complaint.status in ('Submitted', 'Under Review') %}
+                <button type="button" class="btn btn-danger btn-sm" onclick="openCancelModal()">
+                    Cancel Complaint
+                </button>
+            {% elif complaint.status == 'Resolved' and complaint.reopen_count < 2 %}
+                <button type="button" class="btn btn-secondary btn-sm" onclick="openReopenModal()">
+                    ↻ Reopen Issue
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Visual Lifecycle Stepper -->
+    {% if complaint.status not in ('Rejected', 'Cancelled') %}
+    <div style="margin:1.5rem 0 2rem 0; padding:1.25rem; background:rgba(11, 19, 43, 0.4); border-radius:var(--radius-sm); border:1px solid var(--border-glass);">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); margin-bottom:1rem;">
+            Resolution Lifecycle Progression
+        </p>
+        <div style="display:flex; justify-content:space-between; position:relative; overflow-x:auto; padding-bottom:0.5rem;">
+            {% set steps = ['Submitted', 'Under Review', 'Assigned', 'In Progress', 'Awaiting Verification', 'Resolved'] %}
+            {% set current_idx = 0 %}
+            {% for s in steps %}
+                {% if complaint.status == s %}
+                    {% set current_idx = loop.index0 %}
+                {% endif %}
+            {% endfor %}
+            {% if complaint.status == 'Reopened' %}{% set current_idx = 1 %}{% endif %}
+
+            {% for step in steps %}
+                <div style="text-align:center; flex:1; min-width:110px;">
+                    <div style="width:28px; height:28px; border-radius:50%; margin:0 auto 0.5rem auto; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:700;
+                        background: {{ 'var(--status-resolved)' if loop.index0 <= current_idx else 'rgba(255,255,255,0.1)' }};
+                        color: {{ '#0b132b' if loop.index0 <= current_idx else 'var(--text-muted)' }};">
+                        {{ '✓' if loop.index0 < current_idx else loop.index }}
+                    </div>
+                    <span style="font-size:0.75rem; font-weight:{{ '600' if loop.index0 == current_idx else '400' }};
+                        color: {{ 'var(--accent-cyan)' if loop.index0 == current_idx else ('#fff' if loop.index0 < current_idx else 'var(--text-muted)') }};">
+                        {{ step }}
+                    </span>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Title and Description -->
+    <div style="margin-bottom:1.5rem;">
+        <h2 style="font-size:1.2rem; font-weight:600; color:#fff; margin-bottom:0.5rem;">
+            {{ complaint.title }}
+        </h2>
+        <div style="background:rgba(11, 19, 43, 0.5); padding:1.25rem; border-radius:var(--radius-sm); border:1px solid var(--border-glass); font-size:0.95rem; line-height:1.6; white-space:pre-wrap; color:var(--text-secondary);">
+            {{ complaint.description }}
+        </div>
+    </div>
+
+    <!-- Assignment & Technician Details if Assigned -->
+    {% if complaint.assignment %}
+        <div style="background:rgba(72, 202, 228, 0.08); border:1px solid rgba(72, 202, 228, 0.25); border-radius:var(--radius-sm); padding:1rem; margin-bottom:1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+            <div>
+                <span style="font-size:0.8rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Assigned Maintenance Technician</span>
+                <p style="font-size:1rem; font-weight:600; color:#fff; margin-top:0.2rem;">
+                    🔧 {{ complaint.assignment.staff_name }} ({{ complaint.assignment.specialization|capitalize }})
+                </p>
+                {% if complaint.assignment.work_notes %}
+                    <p style="font-size:0.85rem; color:var(--text-secondary); margin-top:0.25rem;">
+                        <strong>Work Notes:</strong> {{ complaint.assignment.work_notes }}
+                    </p>
+                {% endif %}
+            </div>
+            <div>
+                <span class="badge badge-assigned">{{ complaint.assignment.status|capitalize }}</span>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Evidentiary Attachments -->
+    {% if complaint.attachments and complaint.attachments|length > 0 %}
+        <div style="margin-bottom:1.75rem;">
+            <h3 style="font-size:0.95rem; font-weight:600; color:var(--accent-cyan); margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.05em;">
+                Attached Evidence
+            </h3>
+            <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+                {% for att in complaint.attachments %}
+                    <div style="background:rgba(11, 19, 43, 0.6); padding:0.75rem; border-radius:var(--radius-sm); border:1px solid var(--border-glass); max-width:260px;">
+                        {% if att.mime_type.startswith('image/') %}
+                            <a href="/uploads/{{ att.file_path }}" target="_blank" rel="noopener">
+                                <img src="/uploads/{{ att.file_path }}" alt="Evidence" style="width:100%; height:140px; object-fit:cover; border-radius:4px; margin-bottom:0.5rem;">
+                            </a>
+                        {% endif %}
+                        <div style="font-size:0.8rem; color:var(--text-secondary); word-break:break-all;">
+                            📎 <a href="/uploads/{{ att.file_path }}" target="_blank" download>{{ att.original_filename }}</a>
+                        </div>
+                        <small style="color:var(--text-muted); font-size:0.75rem;">{{ att.file_size_kb }} KB &bull; {{ att.file_type|replace('_', ' ')|capitalize }}</small>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Student Feedback Section (When Resolved) -->
+    {% if complaint.status == 'Resolved' %}
+        <div style="margin-top:2rem; padding:1.5rem; background:rgba(6, 214, 160, 0.08); border:1px solid rgba(6, 214, 160, 0.25); border-radius:var(--radius-md);">
+            <h3 style="font-size:1.1rem; font-weight:600; color:var(--status-resolved); margin-bottom:0.5rem;">
+                Service Satisfaction & Feedback
+            </h3>
+
+            {% if complaint.feedback %}
+                <p style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:0.5rem;">
+                    You rated this resolution:
+                    <span style="font-size:1.2rem; color:#ffd166;">
+                        {{ "★" * complaint.feedback.rating }}{{ "☆" * (5 - complaint.feedback.rating) }}
+                    </span>
+                    ({{ complaint.feedback.rating }}/5 Stars)
+                </p>
+                {% if complaint.feedback.comments %}
+                    <blockquote style="font-size:0.88rem; font-style:italic; color:var(--text-muted); border-left:3px solid var(--status-resolved); padding-left:0.75rem;">
+                        "{{ complaint.feedback.comments }}"
+                    </blockquote>
+                {% endif %}
+            {% else %}
+                <p style="font-size:0.88rem; color:var(--text-secondary); margin-bottom:1rem;">
+                    This complaint has been verified and resolved by the warden. Please rate the quality of service:
+                </p>
+                <form action="{{ url_for('student.submit_feedback', complaint_id=complaint.complaint_id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div style="display:flex; gap:1.5rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem;">
+                        <label class="form-label" style="margin-bottom:0;">Rating:</label>
+                        <div style="display:flex; gap:1rem;">
+                            {% for r in [5, 4, 3, 2, 1] %}
+                                <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem;">
+                                    <input type="radio" name="rating" value="{{ r }}" {% if r == 5 %}checked{% endif %}>
+                                    <span>{{ r }} ★</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <textarea name="comments" class="form-control" rows="2" placeholder="Optional comments on technician punctuality, work quality, cleanliness..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-sm">Submit Review</button>
+                </form>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<!-- Responses & Dialogue Thread -->
+<div class="card" style="margin-bottom:2rem;">
+    <div class="card-header">
+        <h3 class="card-title">Official Dialogue & Status History</h3>
+    </div>
+
+    {% if complaint.responses and complaint.responses|length > 0 %}
+        <div style="display:flex; flex-direction:column; gap:1rem; margin-bottom:1.5rem;">
+            {% for r in complaint.responses %}
+                <div style="padding:1rem; background:rgba(11, 19, 43, 0.5); border-radius:var(--radius-sm); border-left:3px solid {{ 'var(--accent-cyan)' if r.author_role == 'warden' else ('#c77dff' if r.author_role == 'staff' else 'var(--text-muted)') }};">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+                        <span style="font-weight:600; color:#fff; font-size:0.9rem;">
+                            {{ r.author_name }} 
+                            <span class="role-tag role-{{ r.author_role }}" style="font-size:0.7rem; margin-left:0.4rem;">{{ r.author_role }}</span>
+                        </span>
+                        <small style="font-size:0.75rem; color:var(--text-muted);">
+                            {{ r.created_at.strftime('%b %d, %Y at %H:%M') if r.created_at else '' }}
+                        </small>
+                    </div>
+                    <p style="font-size:0.88rem; color:var(--text-secondary); line-height:1.5;">
+                        {{ r.message }}
+                    </p>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p style="color:var(--text-muted); font-size:0.85rem; padding:1rem 0;">
+            No official comments added yet. You will be notified as soon as a warden or technician posts an update.
+        </p>
+    {% endif %}
+</div>
+
+<!-- Cancellation Modal (Hidden by Default) -->
+<div id="cancelModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); z-index:2000; align-items:center; justify-content:center;">
+    <div class="card" style="max-width:500px; width:90%;">
+        <h3 style="font-size:1.2rem; color:#fff; margin-bottom:0.75rem;">Confirm Cancellation</h3>
+        <p style="font-size:0.88rem; color:var(--text-secondary); margin-bottom:1rem;">
+            Are you sure you want to cancel ticket <strong>{{ complaint.ticket_number }}</strong>? This action is permanent and cannot be undone.
+        </p>
+        <form action="{{ url_for('student.cancel_complaint', complaint_id=complaint.complaint_id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="cancel_reason" class="form-label">Cancellation Reason *</label>
+                <input type="text" id="cancel_reason" name="cancel_reason" class="form-control" placeholder="e.g. Issue resolved on its own, duplicate request..." required>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeCancelModal()">Back</button>
+                <button type="submit" class="btn btn-danger btn-sm">Yes, Cancel Complaint</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Reopen Modal (Hidden by Default) -->
+<div id="reopenModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); z-index:2000; align-items:center; justify-content:center;">
+    <div class="card" style="max-width:540px; width:90%;">
+        <h3 style="font-size:1.2rem; color:var(--status-reopened); margin-bottom:0.75rem;">Reopen Resolved Issue</h3>
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem;">
+            Reopening is permitted within 48 hours of resolution (Reopen count: {{ complaint.reopen_count }}/2). The ticket will escalate back to warden review.
+        </p>
+        <form action="{{ url_for('student.reopen_complaint', complaint_id=complaint.complaint_id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="reopen_reason" class="form-label">Why is this issue still unresolved? * (Min 10 characters)</label>
+                <textarea id="reopen_reason" name="reopen_reason" class="form-control" rows="3" placeholder="Explain what recurring symptoms occurred after the technician completed work..." required minlength="10"></textarea>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeReopenModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm">Submit Reopen Request</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openCancelModal() {
+        const m = document.getElementById('cancelModal');
+        m.style.display = 'flex';
+    }
+    function closeCancelModal() {
+        document.getElementById('cancelModal').style.display = 'none';
+    }
+
+    function openReopenModal() {
+        const m = document.getElementById('reopenModal');
+        m.style.display = 'flex';
+    }
+    function closeReopenModal() {
+        document.getElementById('reopenModal').style.display = 'none';
+    }
+</script>
+{% endblock %}

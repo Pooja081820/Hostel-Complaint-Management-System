@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Student Dashboard - HostelCare{% endblock %}
+
+{% block content %}
+<!-- Top Header & Action Banner -->
+<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1.75rem;">
+    <div>
+        <h1 style="font-size:1.75rem; font-weight:700; color:#fff;">Welcome, {{ session.get('name') }}</h1>
+        <p style="color:var(--text-muted); font-size:0.9rem;">
+            Enrollment: <strong>{{ session.get('enrollment_number') or 'Active Resident' }}</strong> &bull; Hostel ID: {{ session.get('hostel_id') }}
+        </p>
+    </div>
+    <a href="{{ url_for('student.submit_complaint') }}" class="btn btn-primary" id="btn-lodge-complaint">
+        <span style="font-size:1.1rem; line-height:1;">+</span> Lodge New Complaint
+    </a>
+</div>
+
+<!-- 4 KPI Summary Cards -->
+<div class="form-grid" style="margin-bottom:2rem;">
+    <div class="card" style="padding:1.25rem; border-left:4px solid var(--accent-cyan);">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">Total Complaints</p>
+        <h2 style="font-size:2rem; font-weight:700; color:#fff; margin-top:0.25rem;">{{ metrics.total_complaints or 0 }}</h2>
+        <span style="font-size:0.8rem; color:var(--text-secondary);">Lifetime logged</span>
+    </div>
+
+    <div class="card" style="padding:1.25rem; border-left:4px solid var(--status-review);">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">Pending Review</p>
+        <h2 style="font-size:2rem; font-weight:700; color:var(--status-review); margin-top:0.25rem;">{{ metrics.pending_count or 0 }}</h2>
+        <span style="font-size:0.8rem; color:var(--text-secondary);">Submitted & Under Review</span>
+    </div>
+
+    <div class="card" style="padding:1.25rem; border-left:4px solid var(--status-progress);">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">In Progress</p>
+        <h2 style="font-size:2rem; font-weight:700; color:#c77dff; margin-top:0.25rem;">{{ metrics.in_progress_count or 0 }}</h2>
+        <span style="font-size:0.8rem; color:var(--text-secondary);">Technicians dispatched</span>
+    </div>
+
+    <div class="card" style="padding:1.25rem; border-left:4px solid var(--status-resolved);">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">Resolved</p>
+        <h2 style="font-size:2rem; font-weight:700; color:var(--status-resolved); margin-top:0.25rem;">{{ metrics.resolved_count or 0 }}</h2>
+        <span style="font-size:0.8rem; color:var(--text-secondary);">Verified & closed</span>
+    </div>
+</div>
+
+<!-- Main Dashboard Grid: Recent Complaints + Notifications Sidebar -->
+<div style="display:grid; grid-template-columns: 2fr 1fr; gap:1.75rem; align-items:start;">
+    
+    <!-- Recent Complaints Table Card -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Recent Complaints</h3>
+            <a href="{{ url_for('student.my_complaints') }}" style="font-size:0.85rem; font-weight:600;">View All &rarr;</a>
+        </div>
+
+        {% if recent_complaints and recent_complaints|length > 0 %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Ticket #</th>
+                            <th>Category</th>
+                            <th>Title</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in recent_complaints %}
+                            <tr>
+                                <td>
+                                    <span style="font-family:monospace; font-weight:600; color:var(--accent-cyan);">
+                                        {{ c.ticket_number }}
+                                    </span>
+                                </td>
+                                <td>{{ c.category_name }}</td>
+                                <td>
+                                    <div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                        {{ c.title }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge-prio-{{ c.priority|lower }}">● {{ c.priority }}</span>
+                                </td>
+                                <td>
+                                    {% set s_slug = c.status|lower|replace(' ', '-') %}
+                                    <span class="badge badge-{{ 'review' if s_slug == 'under-review' else ('progress' if s_slug == 'in-progress' else ('verify' if s_slug == 'awaiting-verification' else s_slug)) }}">
+                                        {{ c.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('student.complaint_detail', complaint_id=c.complaint_id) }}" class="btn btn-sm btn-secondary" style="padding:0.25rem 0.5rem; font-size:0.8rem;">
+                                        View
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div style="text-align:center; padding:2.5rem 1rem; color:var(--text-muted);">
+                <div style="font-size:2.5rem; margin-bottom:0.5rem;">📋</div>
+                <p>No complaints filed yet. Everything in your room is in working order!</p>
+                <a href="{{ url_for('student.submit_complaint') }}" class="btn btn-sm btn-primary" style="margin-top:1rem;">Lodge First Complaint</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Notifications Preview Card -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Recent Alerts</h3>
+            <a href="{{ url_for('student.notifications') }}" style="font-size:0.85rem;">View All</a>
+        </div>
+
+        {% if notifications and notifications|length > 0 %}
+            <div style="display:flex; flex-direction:column; gap:0.85rem;">
+                {% for n in notifications %}
+                    <div style="padding:0.75rem; background:rgba(11, 19, 43, 0.5); border-radius:var(--radius-sm); border-left:3px solid {{ 'var(--accent-cyan)' if not n.is_read else 'var(--border-glass)' }};">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+                            <strong style="font-size:0.85rem; color:#fff;">{{ n.title }}</strong>
+                            <small style="font-size:0.7rem; color:var(--text-muted);">
+                                {{ n.created_at.strftime('%b %d, %H:%M') if n.created_at else '' }}
+                            </small>
+                        </div>
+                        <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+                            {{ n.message }}
+                        </p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding:1.5rem 0;">
+                No unread alerts at this time.
+            </p>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}All Campus Complaints - HostelCare Admin{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title" style="font-size:1.4rem;">University-Wide Complaints Master Registry</h1>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.25rem;">
+                Global oversight of all student tickets across every residential hostel on campus.
+            </p>
+        </div>
+        <div style="display:flex; gap:0.5rem;">
+            <a href="{{ url_for('admin.export_complaints_csv') }}" class="btn btn-sm btn-primary">📥 Export CSV</a>
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-secondary">&larr; Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Filter Form -->
+    <form method="GET" action="{{ url_for('admin.all_complaints') }}" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) auto; gap:1rem; align-items:end; margin-bottom:1.5rem; background:rgba(11, 19, 43, 0.4); padding:1rem; border-radius:var(--radius-sm); border:1px solid var(--border-glass);">
+        <div class="form-group" style="margin-bottom:0;">
+            <label for="hostel_id" class="form-label">Hostel Block</label>
+            <select name="hostel_id" id="hostel_id" class="form-select">
+                <option value="all">All Campus Hostels</option>
+                {% for h in hostels %}
+                    <option value="{{ h.hostel_id }}" {% if current_hostel|string == h.hostel_id|string %}selected{% endif %}>
+                        {{ h.name }} ({{ h.code }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+            <label for="status" class="form-label">Status</label>
+            <select name="status" id="status" class="form-select">
+                <option value="all" {% if current_status == 'all' %}selected{% endif %}>All Statuses</option>
+                <option value="Submitted" {% if current_status == 'Submitted' %}selected{% endif %}>Submitted</option>
+                <option value="Under Review" {% if current_status == 'Under Review' %}selected{% endif %}>Under Review</option>
+                <option value="Assigned" {% if current_status == 'Assigned' %}selected{% endif %}>Assigned</option>
+                <option value="In Progress" {% if current_status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Awaiting Verification" {% if current_status == 'Awaiting Verification' %}selected{% endif %}>Awaiting Verification</option>
+                <option value="Resolved" {% if current_status == 'Resolved' %}selected{% endif %}>Resolved</option>
+                <option value="Reopened" {% if current_status == 'Reopened' %}selected{% endif %}>Reopened</option>
+                <option value="Rejected" {% if current_status == 'Rejected' %}selected{% endif %}>Rejected</option>
+                <option value="Cancelled" {% if current_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+            </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+            <label for="q" class="form-label">Search</label>
+            <input type="text" name="q" id="q" class="form-control" placeholder="Ticket #, title, student..." value="{{ search_query }}">
+        </div>
+
+        <div style="display:flex; gap:0.5rem;">
+            <button type="submit" class="btn btn-secondary">Filter</button>
+            <a href="{{ url_for('admin.all_complaints') }}" class="btn btn-secondary">Reset</a>
+        </div>
+    </form>
+
+    <!-- Table -->
+    {% if complaints and complaints|length > 0 %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Ticket #</th>
+                        <th>Hostel / Rm</th>
+                        <th>Student</th>
+                        <th>Category & Issue</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Assigned Staff</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in complaints %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('admin.complaint_detail', complaint_id=c.complaint_id) }}" style="font-family:monospace; font-weight:700; color:var(--accent-cyan);">
+                                    {{ c.ticket_number }}
+                                </a>
+                                {% if c.is_overdue %}
+                                    <span style="font-size:0.65rem; color:#ff4d6d; display:block; font-weight:700;">⚠️ OVERDUE</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong style="color:#fff;">{{ c.hostel_code }}</strong>
+                                <small style="color:var(--text-muted); display:block;">Rm {{ c.room_number or 'Common' }}</small>
+                            </td>
+                            <td style="font-size:0.85rem;">
+                                {{ c.student_name }}
+                                <small style="color:var(--text-muted); display:block;">{{ c.enrollment_number }}</small>
+                            </td>
+                            <td>
+                                <span style="font-size:0.75rem; text-transform:uppercase; color:var(--accent-cyan); display:block; font-weight:600;">
+                                    {{ c.category_name }}
+                                </span>
+                                <div style="font-weight:500; color:#fff; max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                    {{ c.title }}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge-prio-{{ c.priority|lower }}">● {{ c.priority }}</span>
+                            </td>
+                            <td>
+                                {% set s_slug = c.status|lower|replace(' ', '-') %}
+                                <span class="badge badge-{{ 'review' if s_slug == 'under-review' else ('progress' if s_slug == 'in-progress' else ('verify' if s_slug == 'awaiting-verification' else s_slug)) }}">
+                                    {{ c.status }}
+                                </span>
+                            </td>
+                            <td style="font-size:0.85rem;">
+                                {% if c.staff_name %}
+                                    🔧 {{ c.staff_name }}
+                                {% else %}
+                                    <span style="color:var(--text-muted); font-style:italic;">Unassigned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div style="display:flex; gap:0.35rem; align-items:center;">
+                                    <button type="button" class="btn btn-sm btn-primary" style="padding:0.25rem 0.5rem; font-size:0.75rem;" onclick="openPriorityModal({{ c.complaint_id }}, '{{ c.ticket_number }}', '{{ c.priority }}')">
+                                        ⚡ Priority
+                                    </button>
+                                    <a href="{{ url_for('admin.complaint_detail', complaint_id=c.complaint_id) }}" class="btn btn-sm btn-secondary" style="padding:0.25rem 0.5rem; font-size:0.75rem;">
+                                        Inspect
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p style="color:var(--text-muted); text-align:center; padding:3rem 0;">No complaints match query.</p>
+    {% endif %}
+</div>
+
+<!-- Modal: Admin Set Priority -->
+<div id="setPriorityModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); z-index:2000; align-items:center; justify-content:center;">
+    <div class="card" style="max-width:440px; width:90%;">
+        <div class="card-header">
+            <h3 style="font-size:1.15rem; color:#fff;" id="modalTicketTitle">⚡ Admin Set Priority</h3>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="closePriorityModal()">&times;</button>
+        </div>
+
+        <form id="adminPriorityForm" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label for="modal_priority" class="form-label">Designated Priority Level *</label>
+                <select name="priority" id="modal_priority" class="form-select" required>
+                    <option value="Low">Low (Minor cosmetic issue)</option>
+                    <option value="Medium">Medium (Normal service request)</option>
+                    <option value="High">High (Major inconvenience / hygiene)</option>
+                    <option value="Critical">Critical (Safety/Water/Power hazard)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="modal_reason" class="form-label">Admin Assessment Justification *</label>
+                <input type="text" name="reason" id="modal_reason" class="form-control" placeholder="e.g. Set to High after physical inspection..." required minlength="4">
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1.25rem;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closePriorityModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm">Update Priority</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openPriorityModal(complaintId, ticketNumber, currentPriority) {
+    document.getElementById('modalTicketTitle').textContent = '⚡ Set Priority: ' + ticketNumber;
+    document.getElementById('adminPriorityForm').action = '/admin/complaints/' + complaintId + '/change-priority';
+    document.getElementById('modal_priority').value = currentPriority;
+    document.getElementById('modal_reason').value = 'Priority designated by Campus Administrator';
+    document.getElementById('setPriorityModal').style.display = 'flex';
+}
+function closePriorityModal() {
+    document.getElementById('setPriorityModal').style.display = 'none';
+}
+</script>
+{% endblock %}

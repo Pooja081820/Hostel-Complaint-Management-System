@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Campus Hostels & Rooms - HostelCare Admin{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:1.75rem;">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title" style="font-size:1.4rem;">Campus Residential Hostel Blocks</h1>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.25rem;">
+                Configure hostel blocks, manage capacity and floor plans, and delegate warden jurisdictions.
+            </p>
+        </div>
+        <div style="display:flex; gap:0.5rem;">
+            <button type="button" class="btn btn-sm btn-primary" onclick="openHostelModal()">+ Add Hostel Block</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="openAssignWardenModal()">Assign Warden</button>
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-secondary">&larr; Dashboard</a>
+        </div>
+    </div>
+
+    {% if hostels and hostels|length > 0 %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Hostel Name</th>
+                        <th>Code</th>
+                        <th>Type</th>
+                        <th>Floors</th>
+                        <th>Rooms & Occupancy</th>
+                        <th>Assigned Wardens</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in hostels %}
+                        <tr>
+                            <td>
+                                <strong style="color:#fff; font-size:0.95rem;">{{ h.name }}</strong>
+                            </td>
+                            <td><span class="badge badge-assigned">{{ h.code }}</span></td>
+                            <td>
+                                <span class="badge {{ 'badge-review' if h.type == 'girls' else 'badge-progress' }}">
+                                    {{ h.type|capitalize }}
+                                </span>
+                            </td>
+                            <td>{{ h.total_floors }} Floors</td>
+                            <td>
+                                <span style="color:#fff; font-weight:600;">{{ h.total_rooms }} Rooms</span>
+                                <small style="color:var(--text-muted); display:block;">
+                                    Occupancy: {{ h.total_students_housed }} / {{ h.total_capacity }}
+                                </small>
+                            </td>
+                            <td>
+                                {% if h.assigned_wardens and h.assigned_wardens|length > 0 %}
+                                    <div style="display:flex; flex-direction:column; gap:0.25rem;">
+                                        {% for w in h.assigned_wardens %}
+                                            <div style="display:flex; align-items:center; gap:0.4rem;">
+                                                <span class="role-tag role-warden" style="font-size:0.7rem;">🛡️ {{ w.warden_name }}</span>
+                                                <form action="{{ url_for('admin.assign_warden', hostel_id=h.hostel_id) }}" method="POST" style="display:inline;">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <input type="hidden" name="action" value="remove">
+                                                    <input type="hidden" name="warden_id" value="{{ w.warden_id }}">
+                                                    <button type="submit" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.8rem;" title="Remove Warden">&times;</button>
+                                                </form>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <span style="font-size:0.75rem; color:#f4a261; font-weight:600;">⚠️ Unassigned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('admin.rooms_list', hostel_id=h.hostel_id) }}" class="btn btn-sm btn-secondary" style="padding:0.25rem 0.6rem; font-size:0.8rem;">
+                                    Manage Rooms &rarr;
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p style="color:var(--text-muted); text-align:center; padding:3rem 0;">No hostel blocks configured yet.</p>
+    {% endif %}
+</div>
+
+<!-- Modal: Add New Hostel Block -->
+<div id="hostelModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); z-index:2000; align-items:center; justify-content:center;">
+    <div class="card" style="max-width:500px; width:90%;">
+        <h3 style="font-size:1.2rem; color:#fff; margin-bottom:1rem;">Register New Hostel Block</h3>
+        <form action="{{ url_for('admin.create_hostel') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label for="h_name" class="form-label">Hostel Block Name *</label>
+                <input type="text" name="name" id="h_name" class="form-control" placeholder="e.g. Ramanujan Boys Hostel" required>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="h_code" class="form-label">Hostel Code *</label>
+                    <input type="text" name="code" id="h_code" class="form-control" placeholder="e.g. BH-3" required maxlength="10">
+                </div>
+                <div class="form-group">
+                    <label for="h_type" class="form-label">Hostel Type *</label>
+                    <select name="type" id="h_type" class="form-select" required>
+                        <option value="boys">Boys Hostel</option>
+                        <option value="girls">Girls Hostel</option>
+                        <option value="co-ed">Co-Ed Hostel</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="h_floors" class="form-label">Total Number of Floors *</label>
+                <input type="number" name="total_floors" id="h_floors" class="form-control" value="4" min="1" max="20" required>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeHostelModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm">Create Hostel Block</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Assign Warden to Hostel -->
+<div id="assignWardenModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); z-index:2000; align-items:center; justify-content:center;">
+    <div class="card" style="max-width:500px; width:90%;">
+        <h3 style="font-size:1.2rem; color:#fff; margin-bottom:1rem;">Assign Warden to Hostel Block</h3>
+        <form action="{{ url_for('admin.assign_warden', hostel_id=1) }}" method="POST" id="assign-warden-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="assign">
+
+            <div class="form-group">
+                <label for="select_hostel" class="form-label">Target Hostel Block *</label>
+                <select name="target_hostel" id="select_hostel" class="form-select" required onchange="updateAssignActionUrl(this.value)">
+                    <option value="">-- Choose Hostel --</option>
+                    {% for h in hostels %}
+                        <option value="{{ h.hostel_id }}">{{ h.name }} ({{ h.code }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="select_warden" class="form-label">Designated Warden *</label>
+                <select name="warden_id" id="select_warden" class="form-select" required>
+                    <option value="">-- Choose Warden --</option>
+                    {% for w in wardens %}
+                        <option value="{{ w.warden_id }}">{{ w.warden_name }} ({{ w.employee_code }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeAssignWardenModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm">Assign Warden</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openHostelModal() { document.getElementById('hostelModal').style.display = 'flex'; }
+    function closeHostelModal() { document.getElementById('hostelModal').style.display = 'none'; }
+    function openAssignWardenModal() { document.getElementById('assignWardenModal').style.display = 'flex'; }
+    function closeAssignWardenModal() { document.getElementById('assignWardenModal').style.display = 'none'; }
+
+    function updateAssignActionUrl(hostelId) {
+        if (hostelId) {
+            document.getElementById('assign-warden-form').action = `/admin/hostels/${hostelId}/assign-warden`;
+        }
+    }
+</script>
+{% endblock %}

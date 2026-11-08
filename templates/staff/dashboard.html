@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Maintenance Work Order Queue - HostelCare Staff{% endblock %}
+
+{% block content %}
+<!-- Top Header Banner -->
+<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1.75rem;">
+    <div>
+        <h1 style="font-size:1.75rem; font-weight:700; color:#fff;">🔧 Maintenance Task Queue</h1>
+        <p style="color:var(--text-muted); font-size:0.9rem;">
+            Technician: <strong>{{ session.get('name') }}</strong> &bull; Specialization: 
+            <span class="role-tag role-staff">{{ session.get('specialization')|capitalize }}</span> &bull; 
+            Emp Code: {{ session.get('employee_code') }}
+        </p>
+    </div>
+    <a href="{{ url_for('staff.history') }}" class="btn btn-secondary">
+        View Completed History
+    </a>
+</div>
+
+<!-- 4 Metric KPI Cards -->
+<div class="form-grid" style="margin-bottom:2rem;">
+    <div class="card" style="padding:1.25rem; border-left:4px solid var(--accent-cyan);">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">Assigned Tasks</p>
+        <h2 style="font-size:2rem; font-weight:700; color:#fff; margin-top:0.25rem;">{{ metrics.total_assigned or 0 }}</h2>
+        <span style="font-size:0.78rem; color:var(--text-secondary);">Lifetime allocated</span>
+    </div>
+
+    <div class="card" style="padding:1.25rem; border-left:4px solid var(--status-review);">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">Awaiting Acceptance</p>
+        <h2 style="font-size:2rem; font-weight:700; color:var(--status-review); margin-top:0.25rem;">{{ metrics.pending_start or 0 }}</h2>
+        <span style="font-size:0.78rem; color:var(--text-secondary);">New work orders</span>
+    </div>
+
+    <div class="card" style="padding:1.25rem; border-left:4px solid #c77dff;">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">In Progress</p>
+        <h2 style="font-size:2rem; font-weight:700; color:#c77dff; margin-top:0.25rem;">{{ metrics.in_progress or 0 }}</h2>
+        <span style="font-size:0.78rem; color:var(--text-secondary);">Active repairs</span>
+    </div>
+
+    <div class="card" style="padding:1.25rem; border-left:4px solid var(--status-resolved);">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">Repairs Finished</p>
+        <h2 style="font-size:2rem; font-weight:700; color:var(--status-resolved); margin-top:0.25rem;">{{ metrics.completed or 0 }}</h2>
+        <span style="font-size:0.78rem; color:var(--text-secondary);">Completed work orders</span>
+    </div>
+</div>
+
+<!-- Active Tasks Queue Table -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">📋 Active Dispatch Queue</h3>
+        <span style="font-size:0.8rem; color:var(--text-muted);">Prioritized by urgency & SLA</span>
+    </div>
+
+    {% if tasks and tasks|length > 0 %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Ticket #</th>
+                        <th>Hostel / Room</th>
+                        <th>Category</th>
+                        <th>Issue Summary</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Assigned By</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tasks %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('staff.task_detail', assignment_id=t.assignment_id) }}" style="font-family:monospace; font-weight:700; color:var(--accent-cyan);">
+                                    {{ t.ticket_number }}
+                                </a>
+                                {% if t.is_overdue %}
+                                    <span style="font-size:0.65rem; color:#ff4d6d; display:block; font-weight:700;">⚠️ SLA OVERDUE</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong style="color:#fff;">{{ t.hostel_code }}</strong>
+                                <small style="color:var(--text-muted); display:block;">Rm {{ t.room_number or 'Common Area' }}</small>
+                            </td>
+                            <td>{{ t.category_name }}</td>
+                            <td>
+                                <div style="font-weight:500; color:#fff; max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                    {{ t.title }}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge-prio-{{ t.priority|lower }}">● {{ t.priority }}</span>
+                            </td>
+                            <td>
+                                {% if t.task_status == 'assigned' %}
+                                    <span class="badge badge-review">Awaiting Start</span>
+                                {% elif t.task_status == 'in_progress' %}
+                                    <span class="badge badge-progress">In Progress</span>
+                                {% else %}
+                                    <span class="badge badge-assigned">{{ t.task_status|capitalize }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="font-size:0.85rem; color:var(--text-secondary);">
+                                {{ t.assigned_by_warden_name }}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('staff.task_detail', assignment_id=t.assignment_id) }}" class="btn btn-sm btn-primary" style="padding:0.25rem 0.6rem; font-size:0.8rem;">
+                                    Open Task &rarr;
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div style="text-align:center; padding:3rem 1rem; color:var(--text-muted);">
+            <div style="font-size:2.5rem; margin-bottom:0.75rem;">🎉</div>
+            <h3 style="color:#fff; font-size:1.1rem; margin-bottom:0.5rem;">All Clear! No Open Tasks</h3>
+            <p style="font-size:0.9rem;">You have completed all assigned work orders. New maintenance orders from wardens will appear here.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

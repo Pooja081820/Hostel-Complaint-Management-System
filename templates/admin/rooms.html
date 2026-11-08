@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Rooms - {{ hostel.name }} - HostelCare Admin{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:1.75rem;">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title" style="font-size:1.4rem;">Room Inventory: {{ hostel.name }} ({{ hostel.code }})</h1>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.25rem;">
+                Total Floors: {{ hostel.total_floors }} &bull; Gender Classification: {{ hostel.type|capitalize }}
+            </p>
+        </div>
+        <div style="display:flex; gap:0.5rem;">
+            <button type="button" class="btn btn-sm btn-primary" onclick="openRoomModal()">+ Add New Room</button>
+            <a href="{{ url_for('admin.hostels_list') }}" class="btn btn-sm btn-secondary">&larr; Back to Hostels</a>
+        </div>
+    </div>
+
+    {% if rooms and rooms|length > 0 %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Room Number</th>
+                        <th>Floor</th>
+                        <th>Capacity</th>
+                        <th>Current Occupancy</th>
+                        <th>Availability Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rooms %}
+                        <tr>
+                            <td>
+                                <strong style="color:var(--accent-cyan); font-size:1rem; font-family:monospace;">
+                                    Room {{ r.room_number }}
+                                </strong>
+                            </td>
+                            <td>Floor {{ r.floor_number }}</td>
+                            <td>{{ r.capacity }} Students</td>
+                            <td>
+                                <div style="display:flex; align-items:center; gap:0.75rem;">
+                                    <span style="color:#fff; font-weight:600; font-size:0.9rem;">
+                                        {{ r.current_occupancy }} / {{ r.capacity }}
+                                    </span>
+                                    <div style="width:100px; height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden;">
+                                        <div style="width:{{ (r.current_occupancy / r.capacity * 100)|round }}%; height:100%; background:{{ 'var(--prio-critical)' if r.current_occupancy >= r.capacity else 'var(--status-resolved)' }};"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if r.current_occupancy >= r.capacity %}
+                                    <span class="badge badge-rejected">Full</span>
+                                {% elif r.current_occupancy > 0 %}
+                                    <span class="badge badge-review">Partially Occupied</span>
+                                {% else %}
+                                    <span class="badge badge-resolved">Available</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p style="color:var(--text-muted); text-align:center; padding:3rem 0;">No rooms configured for this hostel block yet.</p>
+    {% endif %}
+</div>
+
+<!-- Modal: Add New Room -->
+<div id="roomModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); z-index:2000; align-items:center; justify-content:center;">
+    <div class="card" style="max-width:460px; width:90%;">
+        <h3 style="font-size:1.2rem; color:#fff; margin-bottom:1rem;">Add Room to {{ hostel.code }}</h3>
+        <form action="{{ url_for('admin.create_room', hostel_id=hostel.hostel_id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label for="room_num" class="form-label">Room Number * (e.g. 101, 204)</label>
+                <input type="text" name="room_number" id="room_num" class="form-control" placeholder="101" required maxlength="10">
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="floor_num" class="form-label">Floor Number *</label>
+                    <input type="number" name="floor_number" id="floor_num" class="form-control" value="1" min="0" max="{{ hostel.total_floors }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="room_cap" class="form-label">Capacity (Students) *</label>
+                    <input type="number" name="capacity" id="room_cap" class="form-control" value="2" min="1" max="10" required>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeRoomModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm">Create Room</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openRoomModal() { document.getElementById('roomModal').style.display = 'flex'; }
+    function closeRoomModal() { document.getElementById('roomModal').style.display = 'none'; }
+</script>
+{% endblock %}

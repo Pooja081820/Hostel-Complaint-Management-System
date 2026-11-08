@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Trail - HostelCare Admin{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title" style="font-size:1.4rem;">Immutable Security & System Audit Trail</h1>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.25rem;">
+                Cryptographically tracked compliance log of all system authentication, complaint state transitions, staff dispatches, and governance events.
+            </p>
+        </div>
+        <div style="display:flex; gap:0.5rem;">
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-secondary">&larr; Admin Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <form method="GET" action="{{ url_for('admin.audit_logs') }}" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:end; margin-bottom:1.5rem; background:rgba(11, 19, 43, 0.4); padding:1rem; border-radius:var(--radius-sm); border:1px solid var(--border-glass);">
+        <div class="form-group" style="margin-bottom:0; min-width:240px; flex:1;">
+            <label for="action" class="form-label">Filter Action Type</label>
+            <select name="action" id="action" class="form-select">
+                <option value="all" {% if current_action == 'all' %}selected{% endif %}>All Recorded Actions</option>
+                <option value="LOGIN_SUCCESS" {% if current_action == 'LOGIN_SUCCESS' %}selected{% endif %}>LOGIN_SUCCESS</option>
+                <option value="LOGIN_FAILED" {% if current_action == 'LOGIN_FAILED' %}selected{% endif %}>LOGIN_FAILED</option>
+                <option value="LOGOUT" {% if current_action == 'LOGOUT' %}selected{% endif %}>LOGOUT</option>
+                <option value="COMPLAINT_SUBMIT" {% if current_action == 'COMPLAINT_SUBMIT' %}selected{% endif %}>COMPLAINT_SUBMIT</option>
+                <option value="COMPLAINT_STATUS_CHANGE" {% if current_action == 'COMPLAINT_STATUS_CHANGE' %}selected{% endif %}>COMPLAINT_STATUS_CHANGE</option>
+                <option value="PRIORITY_CHANGE" {% if current_action == 'PRIORITY_CHANGE' %}selected{% endif %}>PRIORITY_CHANGE</option>
+                <option value="ASSIGN_STAFF" {% if current_action == 'ASSIGN_STAFF' %}selected{% endif %}>ASSIGN_STAFF</option>
+                <option value="STAFF_COMPLETE" {% if current_action == 'STAFF_COMPLETE' %}selected{% endif %}>STAFF_COMPLETE</option>
+                <option value="ACTIVATE_USER" {% if current_action == 'ACTIVATE_USER' %}selected{% endif %}>ACTIVATE_USER</option>
+                <option value="DEACTIVATE_USER" {% if current_action == 'DEACTIVATE_USER' %}selected{% endif %}>DEACTIVATE_USER</option>
+                <option value="CREATE_USER" {% if current_action == 'CREATE_USER' %}selected{% endif %}>CREATE_USER</option>
+                <option value="CREATE_HOSTEL" {% if current_action == 'CREATE_HOSTEL' %}selected{% endif %}>CREATE_HOSTEL</option>
+                <option value="ASSIGN_HOSTEL_WARDEN" {% if current_action == 'ASSIGN_HOSTEL_WARDEN' %}selected{% endif %}>ASSIGN_HOSTEL_WARDEN</option>
+                <option value="CREATE_ROOM" {% if current_action == 'CREATE_ROOM' %}selected{% endif %}>CREATE_ROOM</option>
+                <option value="CREATE_CATEGORY" {% if current_action == 'CREATE_CATEGORY' %}selected{% endif %}>CREATE_CATEGORY</option>
+            </select>
+        </div>
+
+        <div style="display:flex; gap:0.5rem;">
+            <button type="submit" class="btn btn-secondary">Apply Filter</button>
+            <a href="{{ url_for('admin.audit_logs') }}" class="btn btn-secondary">Reset</a>
+        </div>
+    </form>
+
+    <!-- Audit Table -->
+    {% if logs and logs|length > 0 %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width:170px;">Timestamp</th>
+                        <th>Action</th>
+                        <th>Actor</th>
+                        <th>Target Entity</th>
+                        <th>IP Address</th>
+                        <th>Details Payload</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in logs %}
+                        <tr>
+                            <td style="font-size:0.8rem; color:var(--text-muted); font-family:monospace; white-space:nowrap;">
+                                {{ l.created_at.strftime('%Y-%m-%d %H:%M:%S') if l.created_at else '' }}
+                            </td>
+                            <td>
+                                {% if 'LOGIN_FAILED' in l.action or 'DEACTIVATE' in l.action or 'DELETE' in l.action %}
+                                    <span class="badge badge-rejected" style="font-size:0.75rem;">{{ l.action }}</span>
+                                {% elif 'SUCCESS' in l.action or 'CREATE' in l.action or 'RESOLVED' in l.action or 'ACTIVATE' in l.action %}
+                                    <span class="badge badge-resolved" style="font-size:0.75rem;">{{ l.action }}</span>
+                                {% elif 'ASSIGN' in l.action or 'LOGIN' in l.action %}
+                                    <span class="badge badge-assigned" style="font-size:0.75rem;">{{ l.action }}</span>
+                                {% elif 'CHANGE' in l.action or 'STATUS' in l.action %}
+                                    <span class="badge badge-inprogress" style="font-size:0.75rem;">{{ l.action }}</span>
+                                {% else %}
+                                    <span class="badge badge-submitted" style="font-size:0.75rem;">{{ l.action }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if l.actor_name and l.actor_name.strip() %}
+                                    <strong style="color:#fff; font-size:0.85rem; display:block;">{{ l.actor_name }}</strong>
+                                    <small style="color:var(--text-muted); font-size:0.75rem;">{{ l.user_email }}</small>
+                                    <span class="badge badge-submitted" style="font-size:0.65rem; padding:1px 6px; margin-top:2px; display:inline-block;">{{ l.user_role }}</span>
+                                {% else %}
+                                    <span style="color:var(--text-muted); font-size:0.8rem; font-style:italic;">System / Anonymous</span>
+                                    {% if l.user_email %}
+                                        <small style="color:var(--text-muted); display:block; font-size:0.75rem;">{{ l.user_email }}</small>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if l.target_entity %}
+                                    <span style="color:var(--accent-cyan); font-family:monospace; font-size:0.85rem;">{{ l.target_entity }}</span>
+                                    {% if l.target_id %}
+                                        <span style="color:var(--text-muted); font-size:0.8rem;">#{{ l.target_id }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span style="color:var(--text-muted); font-size:0.8rem;">&mdash;</span>
+                                {% endif %}
+                            </td>
+                            <td style="font-size:0.8rem; font-family:monospace; color:var(--text-secondary);">
+                                {{ l.ip_address or '127.0.0.1' }}
+                            </td>
+                            <td>
+                                {% if l.details_json %}
+                                    <details style="cursor:pointer; max-width:320px;">
+                                        <summary style="font-size:0.75rem; color:var(--accent-cyan);">View JSON Metadata</summary>
+                                        <pre style="background:rgba(0,0,0,0.5); padding:0.5rem; border-radius:4px; font-size:0.75rem; color:#a5d6a7; overflow-x:auto; margin-top:0.25rem; white-space:pre-wrap;">{{ l.details_json }}</pre>
+                                    </details>
+                                {% else %}
+                                    <span style="color:var(--text-muted); font-size:0.8rem;">&mdash;</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div style="text-align:center; padding:3rem 1rem; color:var(--text-muted);">
+            <div style="font-size:2.5rem; margin-bottom:0.75rem;">📜</div>
+            <h3 style="color:#fff; font-size:1.1rem; margin-bottom:0.25rem;">No Audit Records Found</h3>
+            <p style="font-size:0.85rem;">There are no audit events matching the selected filter criteria.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

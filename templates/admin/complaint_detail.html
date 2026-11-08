@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Ticket {{ complaint.ticket_number }} - Admin Oversight{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:1.5rem; display:flex; justify-content:space-between; align-items:center;">
+    <a href="{{ url_for('admin.all_complaints') }}" class="btn btn-sm btn-secondary">&larr; Back to Complaints Registry</a>
+    <span style="font-size:0.85rem; color:var(--text-muted);">
+        Optimistic Locking Version: <strong>v{{ complaint.version_id }}</strong>
+    </span>
+</div>
+
+<!-- Main Grid: Left Details & Dialogue | Right Management Actions Console -->
+<div style="display:grid; grid-template-columns: 1.8fr 1.2fr; gap:1.75rem; align-items:start;">
+
+    <!-- Left Column: Complaint Data, Evidence, and Dialogue -->
+    <div>
+        <!-- Ticket Card -->
+        <div class="card" style="margin-bottom:1.5rem;">
+            <div class="card-header" style="flex-wrap:wrap; gap:0.75rem;">
+                <div>
+                    <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                        <h1 style="font-size:1.5rem; font-weight:700; color:#fff; font-family:monospace;">
+                            {{ complaint.ticket_number }}
+                        </h1>
+                        {% set s_slug = complaint.status|lower|replace(' ', '-') %}
+                        <span class="badge badge-{{ 'review' if s_slug == 'under-review' else ('progress' if s_slug == 'in-progress' else ('verify' if s_slug == 'awaiting-verification' else s_slug)) }}">
+                            {{ complaint.status }}
+                        </span>
+                        <span class="badge-prio-{{ complaint.priority|lower }}">● {{ complaint.priority }}</span>
+                        {% if complaint.is_overdue %}
+                            <span class="badge badge-rejected">⚠️ SLA BREACHED</span>
+                        {% endif %}
+                    </div>
+                    <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.35rem;">
+                        Lodged: {{ complaint.created_at.strftime('%b %d, %Y at %H:%M') if complaint.created_at else '' }} &bull;
+                        SLA Target: <strong>{{ complaint.sla_deadline.strftime('%b %d, %H:%M') if complaint.sla_deadline else 'Standard' }}</strong>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Student Profile Information -->
+            <div style="background:rgba(11, 19, 43, 0.45); border:1px solid var(--border-glass); border-radius:var(--radius-sm); padding:0.85rem 1rem; margin-bottom:1.25rem; display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; font-size:0.85rem;">
+                <div>
+                    <span style="color:var(--text-muted);">Resident Student:</span>
+                    <strong style="color:#fff; display:block;">{{ complaint.student_name }} ({{ complaint.enrollment_number }})</strong>
+                </div>
+                <div>
+                    <span style="color:var(--text-muted);">Hostel / Room:</span>
+                    <strong style="color:var(--accent-cyan); display:block;">{{ complaint.hostel_name }} - Room {{ complaint.room_number or 'Common Area' }}</strong>
+                </div>
+                <div>
+                    <span style="color:var(--text-muted);">Contact:</span>
+                    <strong style="color:#fff; display:block;">📞 {{ complaint.student_phone }}</strong>
+                </div>
+            </div>
+
+            <!-- Title & Description -->
+            <div style="margin-bottom:1.25rem;">
+                <span style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--accent-cyan);">
+                    Category: {{ complaint.category_name }}
+                </span>
+                <h2 style="font-size:1.2rem; font-weight:600; color:#fff; margin:0.35rem 0 0.75rem 0;">
+                    {{ complaint.title }}
+                </h2>
+                <div style="font-size:0.9rem; color:var(--text-secondary); line-height:1.6; white-space:pre-wrap; background:rgba(0,0,0,0.25); padding:1rem; border-radius:var(--radius-sm); border-left:3px solid var(--accent-cyan);">{{ complaint.description }}</div>
+            </div>
+
+            <!-- Evidentiary Attachments -->
+            {% if complaint.attachments and complaint.attachments|length > 0 %}
+                <div style="margin-top:1.25rem; padding-top:1rem; border-top:1px solid var(--border-glass);">
+                    <h3 style="font-size:0.95rem; font-weight:600; color:#fff; margin-bottom:0.75rem;">Attached Photographic Proof</h3>
+                    <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+                        {% for att in complaint.attachments %}
+                            <div style="background:rgba(0,0,0,0.3); padding:0.5rem; border-radius:var(--radius-sm); border:1px solid var(--border-glass);">
+                                <a href="/uploads/{{ att.file_path }}" target="_blank" rel="noopener">
+                                    <img src="/uploads/{{ att.file_path }}" alt="Evidence Proof" style="width:140px; height:100px; object-fit:cover; border-radius:4px; display:block;">
+                                </a>
+                                <small style="font-size:0.75rem; color:var(--text-muted); display:block; margin-top:0.25rem; text-align:center;">
+                                    {{ att.file_type|replace('_', ' ')|capitalize }}
+                                </small>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Dialogue & Feedback -->
+        <div class="card" style="margin-bottom:1.5rem;">
+            <div class="card-header">
+                <h3 class="card-title">💬 Resolution Dialogue & Communication Trail</h3>
+            </div>
+
+            {% if complaint.responses and complaint.responses|length > 0 %}
+                <div style="display:flex; flex-direction:column; gap:0.85rem; margin-bottom:1.25rem;">
+                    {% for r in complaint.responses %}
+                        <div style="padding:0.85rem; border-radius:var(--radius-sm); background:{{ 'rgba(255, 77, 109, 0.15)' if r.is_internal else 'rgba(11, 19, 43, 0.6)' }}; border-left:3px solid {{ 'var(--prio-critical)' if r.is_internal else 'var(--accent-cyan)' }};">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:0.25rem;">
+                                <strong style="font-size:0.85rem; color:#fff;">
+                                    {{ r.author_name }} <span class="role-tag role-{{ r.author_role }}">{{ r.author_role }}</span>
+                                    {% if r.is_internal %}<span class="badge badge-rejected" style="font-size:0.65rem;">Internal Note</span>{% endif %}
+                                </strong>
+                                <small style="color:var(--text-muted); font-size:0.75rem;">
+                                    {{ r.created_at.strftime('%b %d, %H:%M') if r.created_at else '' }}
+                                </small>
+                            </div>
+                            <p style="font-size:0.88rem; color:var(--text-secondary); line-height:1.5;">
+                                {{ r.message }}
+                            </p>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p style="color:var(--text-muted); font-size:0.85rem; padding:0.5rem 0 1.25rem 0;">No comments posted yet.</p>
+            {% endif %}
+
+            <!-- Add Response Form -->
+            <form action="{{ url_for('admin.respond', complaint_id=complaint.complaint_id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group" style="margin-bottom:0.75rem;">
+                    <textarea name="message" class="form-control" rows="2" placeholder="Post official admin update to resident or internal maintenance note..." required></textarea>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label style="font-size:0.8rem; color:var(--text-secondary); display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
+                        <input type="checkbox" name="is_internal" value="1">
+                        <span>Internal Note (Visible to Admins/Wardens/Staff only)</span>
+                    </label>
+                    <button type="submit" class="btn btn-secondary btn-sm">Post Comment</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Audit History -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Status Transition Audit Trail</h3>
+            </div>
+            <div style="font-size:0.85rem;">
+                {% if complaint.history and complaint.history|length > 0 %}
+                    <ul style="list-style:none; display:flex; flex-direction:column; gap:0.75rem;">
+                        {% for h in complaint.history %}
+                            <li style="display:flex; gap:0.75rem; align-items:flex-start;">
+                                <div style="width:8px; height:8px; border-radius:50%; background:var(--accent-cyan); margin-top:0.4rem;"></div>
+                                <div>
+                                    <strong style="color:#fff;">{{ h.new_status }}</strong>
+                                    {% if h.old_status %}<span style="color:var(--text-muted);">(from {{ h.old_status }})</span>{% endif %}
+                                    &bull; <span style="color:var(--text-secondary);">{{ h.actor_name }} ({{ h.actor_role }})</span>
+                                    <small style="color:var(--text-muted); display:block;">{{ h.created_at.strftime('%b %d, %Y at %H:%M') if h.created_at else '' }} - {{ h.remarks }}</small>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Administrative Actions Console -->
+    <div style="display:flex; flex-direction:column; gap:1.5rem;">
+
+        <!-- Priority Configuration Card (Set by Admin) -->
+        <div class="card" style="border-top:4px solid var(--status-review);">
+            <h3 style="font-size:1.1rem; font-weight:600; color:#fff; margin-bottom:0.5rem;">
+                ⚡ Set / Adjust Priority Level
+            </h3>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1rem;">
+                Complaints are prioritized by Administrator. Changes will be audited and notified to student.
+            </p>
+
+            <form action="{{ url_for('admin.change_priority', complaint_id=complaint.complaint_id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="form-group">
+                    <label for="priority_select" class="form-label">Priority Level *</label>
+                    <select name="priority" id="priority_select" class="form-select" required>
+                        <option value="Low" {% if complaint.priority == 'Low' %}selected{% endif %}>Low (Minor cosmetic issue)</option>
+                        <option value="Medium" {% if complaint.priority == 'Medium' %}selected{% endif %}>Medium (Normal service)</option>
+                        <option value="High" {% if complaint.priority == 'High' %}selected{% endif %}>High (Major inconvenience / hygiene)</option>
+                        <option value="Critical" {% if complaint.priority == 'Critical' %}selected{% endif %}>Critical (Safety/Water/Power hazard)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="prio_reason" class="form-label">Reason / Justification *</label>
+                    <input type="text" name="reason" id="prio_reason" class="form-control" placeholder="e.g. Assessed as urgent safety requirement..." required minlength="4">
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block btn-sm">
+                    Save Priority Level
+                </button>
+            </form>
+
+            {% if priority_history and priority_history|length > 0 %}
+                <div style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border-glass);">
+                    <small style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Priority Audit History:</small>
+                    <ul style="list-style:none; margin-top:0.35rem; font-size:0.78rem; display:flex; flex-direction:column; gap:0.4rem;">
+                        {% for ph in priority_history %}
+                            <li style="color:var(--text-secondary);">
+                                {{ ph.old_priority }} &rarr; <strong>{{ ph.new_priority }}</strong> by {{ ph.changed_by_name }}: "{{ ph.reason }}"
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Work Order Assignment Information -->
+        <div class="card" style="border-top:4px solid var(--accent-cyan);">
+            <h3 style="font-size:1.1rem; font-weight:600; color:#fff; margin-bottom:0.5rem;">
+                🔧 Dispatch & Work Order Status
+            </h3>
+
+            {% if complaint.assignment %}
+                <div style="background:rgba(255,255,255,0.03); border-radius:var(--radius-sm); padding:0.85rem; margin-bottom:1rem;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:0.35rem;">
+                        <strong style="color:#fff; font-size:0.9rem;">{{ complaint.assignment.staff_name }}</strong>
+                        <span class="badge badge-progress">{{ complaint.assignment.status|capitalize }}</span>
+                    </div>
+                    <span style="font-size:0.8rem; color:var(--accent-cyan);">Specialization: {{ complaint.assignment.specialization|capitalize }}</span>
+                    <small style="color:var(--text-muted); display:block; margin-top:0.25rem;">
+                        Assigned: {{ complaint.assignment.assigned_at.strftime('%b %d, %H:%M') if complaint.assignment.assigned_at else '' }}
+                    </small>
+                    {% if complaint.assignment.work_notes %}
+                        <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:0.5rem; background:rgba(0,0,0,0.2); padding:0.4rem 0.6rem; border-radius:4px;">
+                            <strong>Instructions:</strong> {{ complaint.assignment.work_notes }}
+                        </p>
+                    {% endif %}
+                </div>
+            {% else %}
+                <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:1rem;">
+                    No technician dispatched yet. Hostel wardens can dispatch available technicians.
+                </p>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - HostelCare Admin{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title" style="font-size:1.4rem;">User Governance & Access Control</h1>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.25rem;">
+                Manage resident students, hostel wardens, and maintenance staff credentials and statuses.
+            </p>
+        </div>
+        <div style="display:flex; gap:0.5rem;">
+            <button type="button" class="btn btn-sm btn-primary" onclick="openCreateUserModal()">
+                + Create Warden / Staff
+            </button>
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-secondary">&larr; Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <form method="GET" action="{{ url_for('admin.users_list') }}" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) auto; gap:1rem; align-items:end; margin-bottom:1.5rem; background:rgba(11, 19, 43, 0.4); padding:1rem; border-radius:var(--radius-sm); border:1px solid var(--border-glass);">
+        <div class="form-group" style="margin-bottom:0;">
+            <label for="role" class="form-label">Filter Role</label>
+            <select name="role" id="role" class="form-select">
+                <option value="all" {% if current_role == 'all' %}selected{% endif %}>All Roles</option>
+                <option value="student" {% if current_role == 'student' %}selected{% endif %}>Students</option>
+                <option value="warden" {% if current_role == 'warden' %}selected{% endif %}>Wardens</option>
+                <option value="staff" {% if current_role == 'staff' %}selected{% endif %}>Maintenance Staff</option>
+                <option value="admin" {% if current_role == 'admin' %}selected{% endif %}>Administrators</option>
+            </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+            <label for="status" class="form-label">Account Status</label>
+            <select name="status" id="status" class="form-select">
+                <option value="all" {% if current_status == 'all' %}selected{% endif %}>All Statuses</option>
+                <option value="1" {% if current_status == '1' %}selected{% endif %}>Active</option>
+                <option value="0" {% if current_status == '0' %}selected{% endif %}>Deactivated</option>
+            </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+            <label for="q" class="form-label">Search Users</label>
+            <input type="text" name="q" id="q" class="form-control" placeholder="Name, email, phone..." value="{{ search_query }}">
+        </div>
+
+        <div style="display:flex; gap:0.5rem;">
+            <button type="submit" class="btn btn-secondary">Filter</button>
+            <a href="{{ url_for('admin.users_list') }}" class="btn btn-secondary">Reset</a>
+        </div>
+    </form>
+
+    <!-- Users Table -->
+    {% if users and users|length > 0 %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>User Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Profile / Specialization</th>
+                        <th>Phone</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                        <tr>
+                            <td>
+                                <strong style="color:#fff; font-size:0.9rem;">{{ u.first_name }} {{ u.last_name }}</strong>
+                                <small style="color:var(--text-muted); display:block;">Joined: {{ u.created_at.strftime('%b %d, %Y') if u.created_at else '' }}</small>
+                            </td>
+                            <td style="font-size:0.85rem; color:var(--text-secondary);">
+                                {{ u.email }}
+                            </td>
+                            <td>
+                                <span class="role-tag role-{{ u.role }}">{{ u.role }}</span>
+                            </td>
+                            <td style="font-size:0.85rem;">
+                                {% if u.role == 'student' %}
+                                    <span>{{ u.enrollment_number }} ({{ u.student_hostel_code }} Rm {{ u.student_room_number }})</span>
+                                {% elif u.role == 'warden' %}
+                                    <span>Code: {{ u.warden_emp_code }} &bull; {{ u.office_location or 'Main Office' }}</span>
+                                    <small style="color:var(--accent-cyan); display:block; font-size:0.75rem;">
+                                        Hostel(s): {{ u.warden_hostel_codes or 'Not assigned to a block' }}
+                                    </small>
+                                {% elif u.role == 'staff' %}
+                                    <span style="color:var(--accent-cyan); font-weight:600;">Trade: {{ u.specialization|capitalize }}</span>
+                                    <small style="color:var(--text-muted); display:block;">Emp: {{ u.staff_emp_code }}</small>
+                                {% else %}
+                                    <span style="color:var(--prio-critical); font-weight:700;">Full System Superuser</span>
+                                {% endif %}
+                            </td>
+                            <td style="font-size:0.85rem;">📞 {{ u.phone }}</td>
+                            <td>
+                                {% if u.is_active == 1 %}
+                                    <span class="badge badge-resolved">Active</span>
+                                {% else %}
+                                    <span class="badge badge-rejected">Deactivated</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if u.role != 'admin' %}
+                                    <form action="{{ url_for('admin.toggle_user_status', user_id=u.user_id) }}" method="POST" style="display:inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm {{ 'btn-danger' if u.is_active == 1 else 'btn-success' }}" style="padding:0.25rem 0.5rem; font-size:0.75rem;">
+                                            {{ 'Deactivate' if u.is_active == 1 else 'Activate' }}
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">Protected</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p style="color:var(--text-muted); font-size:0.88rem; text-align:center; padding:3rem 0;">No users match criteria.</p>
+    {% endif %}
+</div>
+
+<!-- Modal: Create Warden or Staff Member -->
+<div id="createUserModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); z-index:2000; align-items:center; justify-content:center;">
+    <div class="card" style="max-width:580px; width:90%; max-height:90vh; overflow-y:auto;">
+        <h3 style="font-size:1.2rem; color:#fff; margin-bottom:1rem;">Register Warden or Maintenance Staff</h3>
+
+        <form action="{{ url_for('admin.create_user') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label for="create_role" class="form-label">Role Category *</label>
+                <select name="role" id="create_role" class="form-select" required onchange="toggleRoleFields(this.value)">
+                    <option value="warden">Hostel Warden</option>
+                    <option value="staff">Maintenance Staff Technician</option>
+                </select>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="new_fn" class="form-label">First Name *</label>
+                    <input type="text" name="first_name" id="new_fn" class="form-control" required placeholder="e.g. Ramesh">
+                </div>
+                <div class="form-group">
+                    <label for="new_ln" class="form-label">Last Name *</label>
+                    <input type="text" name="last_name" id="new_ln" class="form-control" required placeholder="e.g. Kumar">
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="new_email" class="form-label">Email Address *</label>
+                    <input type="email" name="email" id="new_email" class="form-control" required placeholder="staff.name@hostel.edu">
+                </div>
+                <div class="form-group">
+                    <label for="new_pwd" class="form-label">Initial Password * (Min 8 chars)</label>
+                    <input type="password" name="password" id="new_pwd" class="form-control" required minlength="8" value="password123">
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="new_phone" class="form-label">Contact Phone *</label>
+                    <input type="tel" name="phone" id="new_phone" class="form-control" required placeholder="9876543210">
+                </div>
+                <div class="form-group">
+                    <label for="new_emp_code" class="form-label">Employee Code *</label>
+                    <input type="text" name="employee_code" id="new_emp_code" class="form-control" required placeholder="e.g. WRD-2026-005">
+                </div>
+            </div>
+
+            <!-- Role Specific Fields -->
+            <div id="warden_fields" class="form-group">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="new_office" class="form-label">Warden Office Location</label>
+                        <input type="text" name="office_location" id="new_office" class="form-control" placeholder="e.g. BH-1 Ground Floor Office">
+                    </div>
+                    <div class="form-group">
+                        <label for="new_hostel_id" class="form-label">Assigned Hostel Block *</label>
+                        <select name="hostel_id" id="new_hostel_id" class="form-select">
+                            <option value="">-- Choose Hostel Block --</option>
+                            {% for h in hostels %}
+                                <option value="{{ h.hostel_id }}">{{ h.name }} ({{ h.code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="staff_fields" class="form-group" style="display:none;">
+                <label for="new_spec" class="form-label">Maintenance Trade Specialization *</label>
+                <select name="specialization" id="new_spec" class="form-select">
+                    <option value="plumbing">Plumbing Specialist</option>
+                    <option value="electrical">Electrical Specialist</option>
+                    <option value="carpentry">Carpentry Specialist</option>
+                    <option value="cleanliness">Housekeeping & Cleanliness</option>
+                    <option value="network">Network & Internet Technician</option>
+                    <option value="pest_control">Pest Control Specialist</option>
+                    <option value="general">General Facilities Maintenance</option>
+                </select>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeCreateUserModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm">Create Account</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openCreateUserModal() {
+        document.getElementById('createUserModal').style.display = 'flex';
+    }
+    function closeCreateUserModal() {
+        document.getElementById('createUserModal').style.display = 'none';
+    }
+    function toggleRoleFields(role) {
+        document.getElementById('warden_fields').style.display = (role === 'warden') ? 'block' : 'none';
+        document.getElementById('staff_fields').style.display = (role === 'staff') ? 'block' : 'none';
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Lodge Complaint - HostelCare{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 860px; margin: 1rem auto;">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title" style="font-size:1.4rem;">Submit Maintenance / Facility Complaint</h1>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.25rem;">
+                Hostel: <strong>{{ session.get('hostel_code', 'Block') }}</strong> &bull; Allocated Room: <strong>{{ session.get('room_number', 'Common') }}</strong>
+            </p>
+        </div>
+        <a href="{{ url_for('student.dashboard') }}" class="btn btn-sm btn-secondary">Cancel</a>
+    </div>
+
+    <!-- Duplicate Alert Warning Banner (Dynamic via AJAX or Server Render) -->
+    <div id="duplicate-warning-container" style="{% if not duplicates %}display:none;{% endif %} margin-bottom:1.5rem;">
+        <div class="alert alert-warning" style="display:block;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                <strong>⚠️ Potential Duplicate Complaints Detected in Your Hostel</strong>
+                <span style="font-size:0.8rem; background:rgba(0,0,0,0.2); padding:0.2rem 0.5rem; border-radius:4px;">
+                    Active in past 48h
+                </span>
+            </div>
+            <p style="font-size:0.85rem; margin-bottom:0.75rem;">
+                The following active complaints with similar descriptions already exist. If your issue is identical, the maintenance team is already informed.
+            </p>
+            <div id="duplicate-list" style="display:flex; flex-direction:column; gap:0.5rem;">
+                {% if duplicates %}
+                    {% for d in duplicates %}
+                        <div style="background:rgba(0,0,0,0.25); padding:0.5rem 0.75rem; border-radius:4px; font-size:0.85rem; display:flex; justify-content:space-between;">
+                            <span><strong>{{ d.ticket_number }}</strong>: {{ d.title }}</span>
+                            <span class="badge badge-progress">{{ d.status }}</span>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <form action="{{ url_for('student.submit_complaint') }}" method="POST" enctype="multipart/form-data" id="complaint-submit-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="confirm_duplicate" id="input-confirm-duplicate" value="{% if duplicates %}1{% else %}0{% endif %}">
+
+        <!-- Room Number & Category Row -->
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="room_number" class="form-label">Room Number / Issue Location *</label>
+                <input type="text" id="room_number" name="room_number" class="form-control" 
+                       value="{{ form.room_number if form and form.room_number else session.get('room_number', '') }}" 
+                       placeholder="e.g. 101, 204, or Common Washroom" required maxlength="20">
+                <small style="color:var(--text-muted); font-size:0.75rem; margin-top:0.35rem; display:block;">
+                    Enter your room number or the specific location of the problem.
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="category_id" class="form-label">Complaint Classification Category *</label>
+                <select id="category_id" name="category_id" class="form-select" required onchange="handleCategoryChange()">
+                    <option value="">-- Choose Category --</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat.category_id }}" 
+                                data-sla="{{ cat.default_sla_hours }}" 
+                                data-prio="{{ cat.default_priority }}"
+                                {% if form and form.category_id|string == cat.category_id|string %}selected{% endif %}>
+                            {{ cat.name }} (SLA: {{ cat.default_sla_hours }}h)
+                        </option>
+                    {% endfor %}
+                </select>
+                <small id="sla-hint" style="color:var(--accent-cyan); font-size:0.75rem; margin-top:0.35rem; display:block;">
+                    Select category to view estimated service response time.
+                </small>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:1rem;">
+            <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-glass); border-radius:var(--radius-sm); padding:0.75rem 1rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <span class="badge badge-assigned" style="font-size:0.75rem;">Admin Triaged</span>
+                    <span style="font-size:0.85rem; color:var(--text-secondary);">
+                        <strong>Priority Level:</strong> Priority is reviewed and designated by the Administrator / Warden.
+                    </span>
+                </div>
+                <small style="color:var(--text-muted); font-size:0.75rem;">Standard initial priority applied</small>
+            </div>
+        </div>
+
+        <!-- Title -->
+        <div class="form-group">
+            <label for="title" class="form-label">Summary Title * (5 - 150 characters)</label>
+            <input type="text" id="title" name="title" class="form-control" 
+                   value="{{ form.title if form else '' }}" 
+                   placeholder="e.g. Washroom basin tap leaking continuously" 
+                   required minlength="5" maxlength="150" oninput="debounceDuplicateCheck()">
+        </div>
+
+        <!-- Description -->
+        <div class="form-group">
+            <label for="description" class="form-label">Detailed Description * (Provide exact location and symptoms)</label>
+            <textarea id="description" name="description" class="form-control" rows="4" 
+                      placeholder="Describe what is wrong, when it started, and any specific times technician can visit..." 
+                      required minlength="15">{{ form.description if form else '' }}</textarea>
+        </div>
+
+        <!-- Visibility Toggle -->
+        <div class="form-group" style="margin-top:1.5rem;">
+            <label class="form-label">Complaint Visibility Scope *</label>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                <label style="background:rgba(11, 19, 43, 0.6); border:1px solid var(--border-glass); border-radius:var(--radius-sm); padding:0.85rem; cursor:pointer; display:flex; gap:0.75rem; align-items:flex-start;">
+                    <input type="radio" name="visibility" value="private" checked onchange="toggleGeneralHostels(false)" style="margin-top:0.25rem;">
+                    <div>
+                        <strong style="color:#fff; font-size:0.9rem;">Private Complaint</strong>
+                        <p style="font-size:0.78rem; color:var(--text-muted); margin-top:0.2rem;">
+                            Specific to your allocated room. Visible only to you, your hostel warden, and assigned maintenance personnel.
+                        </p>
+                    </div>
+                </label>
+
+                <label style="background:rgba(11, 19, 43, 0.6); border:1px solid var(--border-glass); border-radius:var(--radius-sm); padding:0.85rem; cursor:pointer; display:flex; gap:0.75rem; align-items:flex-start;">
+                    <input type="radio" name="visibility" value="general" onchange="toggleGeneralHostels(true)" style="margin-top:0.25rem;">
+                    <div>
+                        <strong style="color:var(--accent-cyan); font-size:0.9rem;">General / Common Facility</strong>
+                        <p style="font-size:0.78rem; color:var(--text-muted); margin-top:0.2rem;">
+                            Common mess, foyer, lift, gym, or water tank. Student identity is masked in public resident notices.
+                        </p>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <!-- Affected Hostels Multi-Select (Revealed when General is selected) -->
+        <div id="general-hostels-section" style="display:none; margin:1rem 0; padding:1rem; background:rgba(72, 202, 228, 0.05); border:1px dashed rgba(72, 202, 228, 0.3); border-radius:var(--radius-sm);">
+            <label class="form-label" style="color:var(--accent-cyan);">Select All Campus Hostels Affected by this Issue:</label>
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:0.5rem; margin-top:0.5rem;">
+                {% for h in hostels %}
+                    <label style="font-size:0.85rem; color:var(--text-secondary); display:flex; align-items:center; gap:0.5rem;">
+                        <input type="checkbox" name="affected_hostels" value="{{ h.hostel_id }}">
+                        {{ h.name }} ({{ h.code }})
+                    </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Evidence Attachment -->
+        <div class="form-group" style="margin-top:1.5rem;">
+            <label for="evidence_photo" class="form-label">Attach Photo Evidence (Optional but recommended for faster resolution)</label>
+            <input type="file" id="evidence_photo" name="evidence_photo" class="form-control" 
+                   accept="image/png, image/jpeg, image/webp, application/pdf" onchange="previewUpload(event)">
+            <small style="font-size:0.75rem; color:var(--text-muted); display:block; margin-top:0.25rem;">
+                Supported: JPG, PNG, WEBP, PDF (Max 5MB).
+            </small>
+            <div id="image-preview-container" style="display:none; margin-top:0.75rem;">
+                <img id="image-preview" src="" alt="Evidence Preview" style="max-height:180px; border-radius:var(--radius-sm); border:1px solid var(--border-glass);">
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div style="margin-top:2rem; display:flex; justify-content:flex-end; gap:1rem;">
+            <a href="{{ url_for('student.dashboard') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary" id="btn-submit-complaint">
+                Submit Complaint Ticket
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let dupTimer = null;
+
+    function handleCategoryChange() {
+        const select = document.getElementById('category_id');
+        const opt = select.options[select.selectedIndex];
+        const hint = document.getElementById('sla-hint');
+        const prioSelect = document.getElementById('priority');
+
+        if (opt.value) {
+            const sla = opt.getAttribute('data-sla');
+            const defaultPrio = opt.getAttribute('data-prio');
+            hint.innerHTML = `Standard Target SLA: <strong>${sla} Hours</strong>.`;
+            if (defaultPrio && prioSelect) {
+                prioSelect.value = defaultPrio;
+            }
+        } else {
+            hint.textContent = 'Select category to view estimated service response time.';
+        }
+        debounceDuplicateCheck();
+    }
+
+    function toggleGeneralHostels(isGeneral) {
+        const section = document.getElementById('general-hostels-section');
+        section.style.display = isGeneral ? 'block' : 'none';
+    }
+
+    function previewUpload(event) {
+        const file = event.target.files[0];
+        const previewCont = document.getElementById('image-preview-container');
+        const previewImg = document.getElementById('image-preview');
+
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                previewCont.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        } else {
+            previewCont.style.display = 'none';
+        }
+    }
+
+    function debounceDuplicateCheck() {
+        clearTimeout(dupTimer);
+        dupTimer = setTimeout(checkDuplicatesAsync, 500);
+    }
+
+    async function checkDuplicatesAsync() {
+        const catId = document.getElementById('category_id').value;
+        const title = document.getElementById('title').value.trim();
+        const warnContainer = document.getElementById('duplicate-warning-container');
+        const list = document.getElementById('duplicate-list');
+
+        if (!catId || title.length < 5) {
+            warnContainer.style.display = 'none';
+            return;
+        }
+
+        try {
+            const res = await fetch('/student/api/check-duplicates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category_id: catId, title: title })
+            });
+            const data = await res.json();
+
+            if (data.duplicates && data.duplicates.length > 0) {
+                list.innerHTML = '';
+                data.duplicates.forEach(d => {
+                    const row = document.createElement('div');
+                    row.style.cssText = 'background:rgba(0,0,0,0.25); padding:0.5rem 0.75rem; border-radius:4px; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;';
+                    row.innerHTML = `<span><strong>${d.ticket_number}</strong>: ${d.title}</span><span class="badge badge-progress">${d.status}</span>`;
+                    list.appendChild(row);
+                });
+                warnContainer.style.display = 'block';
+                document.getElementById('input-confirm-duplicate').value = '1';
+            } else {
+                warnContainer.style.display = 'none';
+            }
+        } catch (e) {
+            console.error('Duplicate check error:', e);
+        }
+    }
+</script>
+{% endblock %}

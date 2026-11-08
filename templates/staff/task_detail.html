@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}Work Order {{ task.ticket_number }} - HostelCare Staff{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:1.5rem;">
+    <a href="{{ url_for('staff.dashboard') }}" class="btn btn-sm btn-secondary">&larr; Back to Task Queue</a>
+</div>
+
+<!-- Main Grid: Left Task Information & Initial Evidence | Right Technician Actions -->
+<div style="display:grid; grid-template-columns: 1.8fr 1.2fr; gap:1.75rem; align-items:start;">
+
+    <!-- Left Column: Work Order Details & Evidence -->
+    <div>
+        <div class="card" style="margin-bottom:1.5rem;">
+            <!-- Header -->
+            <div class="card-header" style="flex-wrap:wrap; gap:0.75rem;">
+                <div>
+                    <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                        <h1 style="font-size:1.5rem; font-weight:700; color:#fff; font-family:monospace;">
+                            {{ task.ticket_number }}
+                        </h1>
+                        <span class="badge {{ 'badge-review' if task.task_status == 'assigned' else ('badge-progress' if task.task_status == 'in_progress' else 'badge-resolved') }}">
+                            {{ task.task_status|capitalize }}
+                        </span>
+                        <span class="badge-prio-{{ task.priority|lower }}">● {{ task.priority }} Priority</span>
+                        {% if task.is_overdue %}
+                            <span class="badge badge-rejected">⚠️ OVERDUE</span>
+                        {% endif %}
+                    </div>
+                    <p style="color:var(--text-muted); font-size:0.85rem; margin-top:0.35rem;">
+                        Delegated by Warden: <strong>{{ task.assigned_by_warden_name }}</strong> &bull;
+                        Assigned on: {{ task.assigned_at.strftime('%b %d, %H:%M') if task.assigned_at else '' }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Location & Student Contact Card -->
+            <div style="background:rgba(11, 19, 43, 0.45); border:1px solid var(--border-glass); border-radius:var(--radius-sm); padding:0.85rem 1rem; margin-bottom:1.25rem; display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; font-size:0.85rem;">
+                <div>
+                    <span style="color:var(--text-muted);">Physical Location:</span>
+                    <strong style="color:var(--accent-cyan); display:block; font-size:0.95rem;">
+                        {{ task.hostel_name }} - Room {{ task.room_number or 'Common Area' }} (Floor {{ task.floor_number or '1' }})
+                    </strong>
+                </div>
+                <div>
+                    <span style="color:var(--text-muted);">Reporting Student:</span>
+                    <strong style="color:#fff; display:block;">{{ task.student_name }}</strong>
+                </div>
+                <div>
+                    <span style="color:var(--text-muted);">Direct Phone:</span>
+                    <strong style="color:#fff; display:block;">📞 {{ task.student_phone }}</strong>
+                </div>
+            </div>
+
+            <!-- Title & Description -->
+            <div style="margin-bottom:1.25rem;">
+                <span style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--accent-cyan);">
+                    {{ task.category_name }}
+                </span>
+                <h2 style="font-size:1.25rem; font-weight:600; color:#fff; margin:0.25rem 0 0.5rem 0;">
+                    {{ task.title }}
+                </h2>
+                <div style="background:rgba(11, 19, 43, 0.6); padding:1.25rem; border-radius:var(--radius-sm); border:1px solid var(--border-glass); font-size:0.95rem; line-height:1.6; white-space:pre-wrap; color:var(--text-secondary);">
+                    {{ task.description }}
+                </div>
+            </div>
+
+            <!-- Warden's Specific Work Order Notes -->
+            {% if task.work_notes %}
+                <div style="background:rgba(244, 162, 97, 0.08); border:1px solid rgba(244, 162, 97, 0.25); border-radius:var(--radius-sm); padding:1rem; margin-bottom:1.25rem;">
+                    <span style="font-size:0.75rem; color:#f4a261; text-transform:uppercase; font-weight:700;">Warden Work Order Instructions:</span>
+                    <p style="font-size:0.9rem; color:var(--text-primary); margin-top:0.35rem; white-space:pre-wrap;">
+                        {{ task.work_notes }}
+                    </p>
+                </div>
+            {% endif %}
+
+            <!-- Evidentiary Attachments -->
+            {% if task.attachments and task.attachments|length > 0 %}
+                <div style="margin-top:1.25rem;">
+                    <h3 style="font-size:0.85rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.75rem;">
+                        Attached Photos & Files
+                    </h3>
+                    <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+                        {% for att in task.attachments %}
+                            <div style="background:rgba(11, 19, 43, 0.5); padding:0.5rem; border-radius:var(--radius-sm); border:1px solid var(--border-glass); max-width:240px;">
+                                {% if att.mime_type.startswith('image/') %}
+                                    <a href="/uploads/{{ att.file_path }}" target="_blank">
+                                        <img src="/uploads/{{ att.file_path }}" alt="Photo" style="width:100%; height:130px; object-fit:cover; border-radius:4px; margin-bottom:0.4rem;">
+                                    </a>
+                                {% endif %}
+                                <div style="font-size:0.8rem; color:var(--text-secondary); word-break:break-all;">
+                                    📎 <a href="/uploads/{{ att.file_path }}" target="_blank" download>{{ att.original_filename }}</a>
+                                </div>
+                                <small style="color:var(--text-muted); font-size:0.75rem;">
+                                    {{ att.file_type|replace('_', ' ')|capitalize }} &bull; {{ att.file_size_kb }} KB
+                                </small>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Dialogue Thread -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Dialogue & Status Updates</h3>
+            </div>
+            {% if task.responses and task.responses|length > 0 %}
+                <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                    {% for r in task.responses %}
+                        <div style="padding:0.85rem 1rem; background:rgba(11, 19, 43, 0.5); border-radius:var(--radius-sm); border-left:3px solid {{ '#c77dff' if r.author_role == 'staff' else ('var(--accent-cyan)' if r.author_role == 'warden' else '#06d6a0') }};">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+                                <span style="font-weight:600; color:#fff; font-size:0.88rem;">
+                                    {{ r.author_name }} ({{ r.author_role|capitalize }})
+                                </span>
+                                <small style="font-size:0.75rem; color:var(--text-muted);">
+                                    {{ r.created_at.strftime('%b %d, %H:%M') if r.created_at else '' }}
+                                </small>
+                            </div>
+                            <p style="font-size:0.88rem; color:var(--text-secondary); line-height:1.5;">
+                                {{ r.message }}
+                            </p>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p style="color:var(--text-muted); font-size:0.85rem;">No remarks recorded on this task yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right Column: Technician Work Order Controls -->
+    <div style="display:flex; flex-direction:column; gap:1.5rem;">
+
+        <!-- State 1: Accept Work Order -->
+        {% if task.task_status == 'assigned' %}
+            <div class="card" style="border-top:4px solid var(--status-review);">
+                <h3 style="font-size:1.15rem; font-weight:600; color:#fff; margin-bottom:0.5rem;">
+                    🚀 Start Work Order
+                </h3>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1.25rem;">
+                    Acknowledge receipt of this task and notify the resident student that you are commencing inspection.
+                </p>
+
+                <form action="{{ url_for('staff.accept_task', assignment_id=task.assignment_id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-primary btn-block" id="btn-accept-task">
+                        Accept Task & Begin Work
+                    </button>
+                </form>
+            </div>
+        {% endif %}
+
+        <!-- State 2: Active Task Actions (Notes & Completion) -->
+        {% if task.task_status == 'in_progress' %}
+            <!-- Form 1: Add Progress Notes -->
+            <div class="card" style="border-top:4px solid #c77dff;">
+                <h3 style="font-size:1.1rem; font-weight:600; color:#fff; margin-bottom:0.5rem;">
+                    📝 Log Work Progress
+                </h3>
+                <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1rem;">
+                    Update parts requisition, inspection findings, or expected completion ETA.
+                </p>
+
+                <form action="{{ url_for('staff.update_notes', assignment_id=task.assignment_id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-group">
+                        <textarea name="work_notes" class="form-control" rows="2" placeholder="e.g. Procuring replacement valve from central store..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-secondary btn-block btn-sm">
+                        Append Progress Note
+                    </button>
+                </form>
+            </div>
+
+            <!-- Form 2: Mark Completed & Upload Photo Proof -->
+            <div class="card" style="border-top:4px solid var(--status-resolved);">
+                <h3 style="font-size:1.1rem; font-weight:600; color:var(--status-resolved); margin-bottom:0.5rem;">
+                    ✓ Mark Work Completed
+                </h3>
+                <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1rem;">
+                    Confirm repairs are finished. Uploading photo proof allows the warden to verify and close the ticket promptly.
+                </p>
+
+                <form action="{{ url_for('staff.complete_task', assignment_id=task.assignment_id) }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="form-group">
+                        <label for="completion_summary" class="form-label">Repair Summary *</label>
+                        <textarea name="completion_summary" id="completion_summary" class="form-control" rows="2" placeholder="e.g. Replaced defective capacitor, tested fan at full speed, noise eliminated." required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="completion_photo" class="form-label">Upload Completion Photo Proof</label>
+                        <input type="file" name="completion_photo" id="completion_photo" class="form-control" accept="image/png, image/jpeg, image/webp">
+                        <small style="font-size:0.75rem; color:var(--text-muted); display:block; margin-top:0.25rem;">
+                            Upload photo of finished work (optional but recommended).
+                        </small>
+                    </div>
+
+                    <button type="submit" class="btn btn-success btn-block" id="btn-complete-task">
+                        Submit for Warden Verification
+                    </button>
+                </form>
+            </div>
+        {% endif %}
+
+        <!-- State 3: Completed State -->
+        {% if task.task_status == 'completed' %}
+            <div class="card" style="border-top:4px solid var(--status-resolved);">
+                <div style="font-size:2rem; margin-bottom:0.5rem; text-align:center;">🎉</div>
+                <h3 style="font-size:1.15rem; font-weight:600; color:var(--status-resolved); text-align:center; margin-bottom:0.5rem;">
+                    Work Completed
+                </h3>
+                <p style="font-size:0.85rem; color:var(--text-secondary); text-align:center; line-height:1.5;">
+                    Repairs finished on <strong>{{ task.completed_at.strftime('%b %d at %H:%M') if task.completed_at else 'Recently' }}</strong>. 
+                    This ticket is now in <em>Awaiting Verification</em> state awaiting final warden sign-off.
+                </p>
+            </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

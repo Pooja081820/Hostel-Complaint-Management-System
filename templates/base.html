@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="description" content="Centralized Hostel Complaint Management System for campus residents, wardens, and maintenance personnel.">
+    <title>{% block title %}Hostel Complaint Management System{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <!-- Header & Navigation -->
+    <header class="navbar">
+        <div class="nav-container">
+            <a href="/" class="brand-logo" id="nav-brand-logo">
+                <div class="brand-icon">H</div>
+                <span>HostelCare</span>
+            </a>
+
+            <nav>
+                <ul class="nav-links">
+                    {% if session.get('user_id') %}
+                        {# Role-specific Dashboard link #}
+                        {% if session.get('role') == 'student' %}
+                            <li><a href="{{ url_for('student.dashboard') }}" class="nav-link" id="nav-student-dashboard">Dashboard</a></li>
+                            <li><a href="{{ url_for('student.submit_complaint') }}" class="nav-link" id="nav-student-lodge">Lodge Complaint</a></li>
+                            <li><a href="{{ url_for('student.my_complaints') }}" class="nav-link" id="nav-student-complaints">My Complaints</a></li>
+                        {% elif session.get('role') == 'warden' %}
+                            <li><a href="{{ url_for('warden.dashboard') }}" class="nav-link" id="nav-warden-dashboard">Dashboard</a></li>
+                            <li><a href="{{ url_for('warden.complaints') }}" class="nav-link" id="nav-warden-complaints">Complaints</a></li>
+                            <li><a href="{{ url_for('warden.reports') }}" class="nav-link" id="nav-warden-reports">SLA Reports</a></li>
+                        {% elif session.get('role') == 'staff' %}
+                            <li><a href="{{ url_for('staff.dashboard') }}" class="nav-link" id="nav-staff-dashboard">My Work Orders</a></li>
+                            <li><a href="{{ url_for('staff.history') }}" class="nav-link" id="nav-staff-history">Work History</a></li>
+                        {% elif session.get('role') == 'admin' %}
+                            <li><a href="{{ url_for('admin.dashboard') }}" class="nav-link" id="nav-admin-dashboard">Admin Dashboard</a></li>
+                            <li><a href="{{ url_for('admin.users_list') }}" class="nav-link" id="nav-admin-users">Users</a></li>
+                            <li><a href="{{ url_for('admin.hostels_list') }}" class="nav-link" id="nav-admin-hostels">Hostels</a></li>
+                            <li><a href="{{ url_for('admin.audit_logs') }}" class="nav-link" id="nav-admin-audit">Audit Logs</a></li>
+                        {% endif %}
+
+                        <li><a href="{{ url_for('notifications.view_notifications') }}" class="nav-link" id="nav-notifications">
+                            🔔 Alerts
+                            <span id="nav-unread-badge" class="badge badge-reopened" style="font-size:0.7rem; padding:0.1rem 0.45rem; {% if not unread_notif_count or unread_notif_count == 0 %}display:none;{% endif %}">{{ unread_notif_count or 0 }}</span>
+                        </a></li>
+
+                        <li class="user-badge" id="nav-user-badge">
+                            <span class="role-tag role-{{ session.get('role') }}">{{ session.get('role') }}</span>
+                            <span>{{ session.get('name') }}</span>
+                            <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-secondary" style="padding:0.25rem 0.5rem; margin-left:0.25rem;" id="nav-btn-logout">Logout</a>
+                        </li>
+                    {% else %}
+                        <li><a href="{{ url_for('auth.login') }}" class="nav-link" id="nav-login">Sign In</a></li>
+                        <li><a href="{{ url_for('auth.register') }}" class="btn btn-sm btn-primary" id="nav-register">Student Register</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="main-wrapper">
+        <!-- Flash Alert Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-container" id="flash-message-container">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}" role="alert">
+                            <span>{{ message }}</span>
+                            <button type="button" class="alert-close" onclick="this.parentElement.remove();" aria-label="Dismiss Alert">&times;</button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="nav-container" style="justify-content:center; flex-direction:column; gap:0.25rem;">
+            <p>&copy; 2026 Campus Facility Operations &bull; Hostel Complaint Management System</p>
+            <p style="font-size:0.75rem; color:var(--text-muted);">Engineered with Python Flask, MySQL 8.0 (InnoDB), and Vanilla Web Components.</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+
+    {% if session.get('user_id') %}
+    <script>
+    // Real-Time Notification Poller (runs every 20 seconds)
+    (function initNotificationPoller() {
+        function checkUnread() {
+            fetch('/api/notifications/poll')
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.success) {
+                        const badge = document.getElementById('nav-unread-badge');
+                        if (badge) {
+                            if (data.unread_count > 0) {
+                                badge.textContent = data.unread_count;
+                                badge.style.display = 'inline-block';
+                            } else {
+                                badge.style.display = 'none';
+                            }
+                        }
+                    }
+                })
+                .catch(() => {});
+        }
+        setInterval(checkUnread, 20000);
+    })();
+    </script>
+    {% endif %}
+</body>
+</html>

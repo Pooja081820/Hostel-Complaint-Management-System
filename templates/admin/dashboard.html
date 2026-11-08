@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}System Governance & Analytics - HostelCare Admin{% endblock %}
+
+{% block content %}
+<!-- Top Header & Navigation Shortcuts -->
+<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1.75rem;">
+    <div>
+        <h1 style="font-size:1.75rem; font-weight:700; color:#fff;">⚙️ Campus System Governance</h1>
+        <p style="color:var(--text-muted); font-size:0.9rem;">
+            Administrator: <strong>{{ session.get('name') }}</strong> &bull; University Central Facility Operations
+        </p>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+        <a href="{{ url_for('admin.users_list') }}" class="btn btn-primary btn-sm">+ Register Warden / Staff</a>
+        <a href="{{ url_for('admin.users_list') }}" class="btn btn-secondary btn-sm">Manage Users</a>
+        <a href="{{ url_for('admin.hostels_list') }}" class="btn btn-secondary btn-sm">Hostels & Rooms</a>
+        <a href="{{ url_for('admin.categories_list') }}" class="btn btn-secondary btn-sm">Categories & SLAs</a>
+        <a href="{{ url_for('admin.all_complaints') }}" class="btn btn-secondary btn-sm">All Complaints</a>
+    </div>
+</div>
+
+<!-- 5 Top-Level System KPI Cards -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap:1.25rem; margin-bottom:2rem;">
+    <div class="card" style="padding:1.25rem; border-left:4px solid var(--accent-cyan);">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">Registered Users</p>
+        <h2 style="font-size:1.9rem; font-weight:700; color:#fff; margin-top:0.25rem;">
+            {{ (kpis.total_students or 0) + (kpis.total_wardens or 0) + (kpis.total_staff or 0) }}
+        </h2>
+        <span style="font-size:0.75rem; color:var(--text-secondary);">
+            {{ kpis.total_students or 0 }} Stud &bull; {{ kpis.total_wardens or 0 }} Wrd &bull; {{ kpis.total_staff or 0 }} Stf
+        </span>
+    </div>
+
+    <div class="card" style="padding:1.25rem; border-left:4px solid var(--status-assigned);">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">Hostels & Rooms</p>
+        <h2 style="font-size:1.9rem; font-weight:700; color:var(--accent-cyan); margin-top:0.25rem;">
+            {{ kpis.total_hostels or 0 }} Blocks
+        </h2>
+        <span style="font-size:0.75rem; color:var(--text-secondary);">{{ kpis.total_rooms or 0 }} Residential Rooms</span>
+    </div>
+
+    <div class="card" style="padding:1.25rem; border-left:4px solid #c77dff;">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">Total Complaints</p>
+        <h2 style="font-size:1.9rem; font-weight:700; color:#c77dff; margin-top:0.25rem;">{{ kpis.total_complaints or 0 }}</h2>
+        <span style="font-size:0.75rem; color:var(--text-secondary);">
+            {{ kpis.total_pending or 0 }} Pending &bull; {{ kpis.total_in_progress or 0 }} Active
+        </span>
+    </div>
+
+    <div class="card" style="padding:1.25rem; border-left:4px solid var(--status-resolved);">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">Resolution Rate</p>
+        <h2 style="font-size:1.9rem; font-weight:700; color:var(--status-resolved); margin-top:0.25rem;">
+            {{ kpis.resolution_rate or 0 }}%
+        </h2>
+        <span style="font-size:0.75rem; color:var(--text-secondary);">Avg Turnaround: {{ kpis.avg_turnaround_hours or 0 }}h</span>
+    </div>
+
+    <div class="card" style="padding:1.25rem; border-left:4px solid var(--prio-critical);">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--prio-critical);">SLA Breached (Overdue)</p>
+        <h2 style="font-size:1.9rem; font-weight:700; color:var(--prio-critical); margin-top:0.25rem;">
+            {{ kpis.total_overdue or 0 }}
+        </h2>
+        <span style="font-size:0.75rem; color:var(--prio-critical); font-weight:600;">Requires Administrative Escalation</span>
+    </div>
+</div>
+
+<!-- Middle Grid: Category Distribution + Hostel Comparison -->
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.75rem; margin-bottom:2rem; align-items:start;">
+
+    <!-- Category Distribution Visual Bars -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">📊 Category Issue Breakdown</h3>
+            <a href="{{ url_for('admin.categories_list') }}" style="font-size:0.8rem;">Manage SLAs &rarr;</a>
+        </div>
+        {% if analytics.categories and analytics.categories|length > 0 %}
+            {% set max_val = analytics.categories[0].val %}
+            <div style="display:flex; flex-direction:column; gap:0.85rem;">
+                {% for c in analytics.categories %}
+                    <div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:0.25rem;">
+                            <span style="color:#fff; font-weight:500;">{{ c.label }}</span>
+                            <strong style="color:var(--accent-cyan);">{{ c.val }} complaints</strong>
+                        </div>
+                        <div style="width:100%; height:8px; background:rgba(255,255,255,0.06); border-radius:4px; overflow:hidden;">
+                            <div style="width:{{ (c.val / max_val * 100)|round }}%; height:100%; background:linear-gradient(90deg, var(--accent-cyan), var(--accent-blue)); border-radius:4px;"></div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding:1.5rem 0;">No category data available yet.</p>
+        {% endif %}
+    </div>
+
+    <!-- Hostel Comparative Performance -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">🏢 Hostel Block Comparison</h3>
+            <a href="{{ url_for('admin.hostels_list') }}" style="font-size:0.8rem;">View Hostels &rarr;</a>
+        </div>
+        {% if analytics.hostels and analytics.hostels|length > 0 %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Hostel</th>
+                            <th>Total Logged</th>
+                            <th>Resolved</th>
+                            <th>Overdue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for h in analytics.hostels %}
+                            <tr>
+                                <td><span class="badge badge-assigned">{{ h.label }}</span></td>
+                                <td style="font-weight:600; color:#fff;">{{ h.total }}</td>
+                                <td style="color:var(--status-resolved); font-weight:600;">{{ h.resolved }}</td>
+                                <td>
+                                    {% if h.overdue > 0 %}
+                                        <span style="color:var(--prio-critical); font-weight:700;">{{ h.overdue }}</span>
+                                    {% else %}
+                                        <span style="color:var(--text-muted);">0</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding:1.5rem 0;">No hostel metrics recorded.</p>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- Lower Grid: Staff Efficiency Ranking (Window Function DENSE_RANK) + Audit Log Feed -->
+<div style="display:grid; grid-template-columns: 1.3fr 1fr; gap:1.75rem; align-items:start;">
+
+    <!-- Staff Efficiency Leaderboard -->
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">🏆 Maintenance Technician Performance</h3>
+                <small style="color:var(--text-muted); font-size:0.75rem;">Computed via SQL Window Function DENSE_RANK()</small>
+            </div>
+        </div>
+
+        {% if analytics.staff_ranking and analytics.staff_ranking|length > 0 %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Technician</th>
+                            <th>Trade</th>
+                            <th>Done / Total</th>
+                            <th>Avg Turnaround</th>
+                            <th>Rating</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for st in analytics.staff_ranking %}
+                            <tr>
+                                <td>
+                                    <span style="font-weight:800; font-size:1rem; color:{{ '#ffd166' if st.efficiency_rank == 1 else ('#cbd5e1' if st.efficiency_rank == 2 else 'var(--accent-cyan)') }};">
+                                        #{{ st.efficiency_rank }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <strong style="color:#fff; font-size:0.88rem;">{{ st.staff_name }}</strong>
+                                </td>
+                                <td>
+                                    <span class="role-tag role-staff" style="font-size:0.65rem;">{{ st.specialization }}</span>
+                                </td>
+                                <td>
+                                    <span style="color:var(--status-resolved); font-weight:600;">{{ st.completed_count }}</span> / {{ st.total_assigned }}
+                                </td>
+                                <td>{{ st.avg_hours or 'N/A' }}h</td>
+                                <td style="color:#ffd166; font-weight:700;">
+                                    {{ st.avg_rating or 'Unrated' }} ★
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding:1.5rem 0;">No staff performance records available yet.</p>
+        {% endif %}
+    </div>
+
+    <!-- Security Audit Logs Highlights -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">🛡️ Security Audit Feed</h3>
+            <a href="{{ url_for('admin.audit_logs') }}" style="font-size:0.8rem;">Full Trail &rarr;</a>
+        </div>
+
+        {% if recent_audits and recent_audits|length > 0 %}
+            <div style="display:flex; flex-direction:column; gap:0.65rem;">
+                {% for al in recent_audits %}
+                    <div style="padding:0.65rem 0.85rem; background:rgba(11, 19, 43, 0.5); border-radius:var(--radius-sm); border-left:3px solid var(--accent-cyan); font-size:0.82rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.2rem;">
+                            <span style="font-weight:700; color:#fff; font-family:monospace;">{{ al.action }}</span>
+                            <small style="color:var(--text-muted); font-size:0.7rem;">{{ al.created_at.strftime('%H:%M:%S') if al.created_at else '' }}</small>
+                        </div>
+                        <span style="color:var(--text-secondary); display:block;">
+                            Actor: {{ al.actor_name or 'System' }} &bull; IP: {{ al.ip_address }}
+                        </span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding:1.5rem 0;">No audit events recorded.</p>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

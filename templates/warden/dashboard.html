@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Warden Operational Command - HostelCare{% endblock %}
+
+{% block content %}
+<!-- Top Header & Assigned Hostels Banner -->
+<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1.75rem;">
+    <div>
+        <h1 style="font-size:1.75rem; font-weight:700; color:#fff;">🛡️ Warden Operational Command</h1>
+        <p style="color:var(--text-muted); font-size:0.9rem;">
+            Warden: <strong>{{ session.get('name') }}</strong> &bull; Hostels Supervised: 
+            {% for h in hostels %}
+                <span class="badge badge-assigned" style="font-size:0.75rem; margin-right:0.25rem;">{{ h.name }} ({{ h.code }})</span>
+            {% endfor %}
+        </p>
+    </div>
+    <div style="display:flex; gap:0.75rem;">
+        <a href="{{ url_for('warden.complaints') }}" class="btn btn-primary" id="btn-triage-complaints">
+            Triage Complaints
+        </a>
+        <a href="{{ url_for('warden.reports') }}" class="btn btn-secondary">
+            SLA Performance
+        </a>
+    </div>
+</div>
+
+<!-- 5 Metric KPI Cards -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap:1.25rem; margin-bottom:2rem;">
+    <div class="card" style="padding:1.25rem; border-left:4px solid var(--accent-cyan);">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">Total Complaints</p>
+        <h2 style="font-size:1.9rem; font-weight:700; color:#fff; margin-top:0.25rem;">{{ metrics.total or 0 }}</h2>
+        <span style="font-size:0.78rem; color:var(--text-secondary);">In your hostels</span>
+    </div>
+
+    <div class="card" style="padding:1.25rem; border-left:4px solid var(--status-review);">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">Pending Review</p>
+        <h2 style="font-size:1.9rem; font-weight:700; color:var(--status-review); margin-top:0.25rem;">{{ metrics.pending or 0 }}</h2>
+        <span style="font-size:0.78rem; color:var(--text-secondary);">Needs technician dispatch</span>
+    </div>
+
+    <div class="card" style="padding:1.25rem; border-left:4px solid #c77dff;">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">In Progress</p>
+        <h2 style="font-size:1.9rem; font-weight:700; color:#c77dff; margin-top:0.25rem;">{{ metrics.in_progress or 0 }}</h2>
+        <span style="font-size:0.78rem; color:var(--text-secondary);">Technicians working</span>
+    </div>
+
+    <div class="card" style="padding:1.25rem; border-left:4px solid var(--prio-critical);">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--prio-critical);">Overdue (SLA Breached)</p>
+        <h2 style="font-size:1.9rem; font-weight:700; color:var(--prio-critical); margin-top:0.25rem;">{{ metrics.overdue or 0 }}</h2>
+        <span style="font-size:0.78rem; color:var(--prio-critical); font-weight:600;">Immediate action required</span>
+    </div>
+
+    <div class="card" style="padding:1.25rem; border-left:4px solid var(--status-resolved);">
+        <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted);">Avg Turnaround</p>
+        <h2 style="font-size:1.9rem; font-weight:700; color:var(--status-resolved); margin-top:0.25rem;">
+            {{ metrics.avg_resolution_hours or 0 }}<span style="font-size:1rem; font-weight:400; color:var(--text-muted);">h</span>
+        </h2>
+        <span style="font-size:0.78rem; color:var(--text-secondary);">Resolution duration</span>
+    </div>
+</div>
+
+<!-- Main Split: Urgent Tickets + Staff Dispatch Workload -->
+<div style="display:grid; grid-template-columns: 2fr 1.1fr; gap:1.75rem; align-items:start;">
+
+    <!-- Urgent Complaints Queue -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">🚨 Priority Triage Queue</h3>
+            <a href="{{ url_for('warden.complaints') }}" style="font-size:0.85rem; font-weight:600;">Full Registry &rarr;</a>
+        </div>
+
+        {% if urgent_complaints and urgent_complaints|length > 0 %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Ticket #</th>
+                            <th>Hostel / Room</th>
+                            <th>Category</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in urgent_complaints %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('warden.complaint_detail', complaint_id=c.complaint_id) }}" style="font-family:monospace; font-weight:700; color:var(--accent-cyan);">
+                                        {{ c.ticket_number }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span style="font-size:0.85rem; color:#fff;">{{ c.hostel_code }}</span>
+                                    <small style="color:var(--text-muted); display:block;">Rm {{ c.room_number or 'Common' }}</small>
+                                </td>
+                                <td style="font-size:0.85rem;">{{ c.category_name }}</td>
+                                <td>
+                                    <span class="badge-prio-{{ c.priority|lower }}">● {{ c.priority }}</span>
+                                </td>
+                                <td>
+                                    {% set s_slug = c.status|lower|replace(' ', '-') %}
+                                    <span class="badge badge-{{ 'review' if s_slug == 'under-review' else ('progress' if s_slug == 'in-progress' else ('verify' if s_slug == 'awaiting-verification' else s_slug)) }}">
+                                        {{ c.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('warden.complaint_detail', complaint_id=c.complaint_id) }}" class="btn btn-sm btn-secondary" style="padding:0.25rem 0.6rem; font-size:0.8rem;">
+                                        Manage
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p style="color:var(--text-muted); font-size:0.88rem; text-align:center; padding:2rem 0;">
+                No open tickets in your assigned hostels. Outstanding management!
+            </p>
+        {% endif %}
+    </div>
+
+    <!-- Maintenance Staff Workload Overview -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">🔧 Maintenance Technicians</h3>
+            <span style="font-size:0.8rem; color:var(--text-muted);">Active Workload</span>
+        </div>
+
+        {% if staff_workload and staff_workload|length > 0 %}
+            <div style="display:flex; flex-direction:column; gap:0.85rem;">
+                {% for st in staff_workload %}
+                    <div style="padding:0.85rem; background:rgba(11, 19, 43, 0.55); border-radius:var(--radius-sm); border:1px solid var(--border-glass); display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <strong style="color:#fff; font-size:0.9rem;">{{ st.staff_name }}</strong>
+                                <span class="role-tag role-staff" style="font-size:0.65rem;">{{ st.specialization }}</span>
+                            </div>
+                            <span style="font-size:0.78rem; color:var(--text-muted); margin-top:0.2rem; display:block;">
+                                📞 {{ st.phone }} &bull; Emp: {{ st.employee_code }}
+                            </span>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="badge {{ 'badge-review' if st.active_tasks_count > 2 else ('badge-progress' if st.active_tasks_count > 0 else 'badge-resolved') }}">
+                                {{ st.active_tasks_count }} Active
+                            </span>
+                            <small style="font-size:0.7rem; color:var(--text-muted); display:block; margin-top:0.2rem;">
+                                {{ st.completed_tasks_count }} Done
+                            </small>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color:var(--text-muted); font-size:0.85rem; padding:1.5rem 0; text-align:center;">
+                No staff members currently registered.
+            </p>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

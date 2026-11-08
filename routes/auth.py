@@ -157,7 +157,7 @@ def register():
                 except Exception:
                     flr = 1
                 _, created_rid = execute_dml(
-                    "INSERT INTO rooms (hostel_id, room_number, floor_number, capacity, current_occupancy) VALUES (%s, %s, %s, 4, 0)",
+                    "INSERT INTO rooms (hostel_id, room_number, floor_number) VALUES (%s, %s, %s)",
                     (form_data["hostel_id"], form_data["room_number"][:10], flr)
                 )
                 form_data["room_id"] = created_rid

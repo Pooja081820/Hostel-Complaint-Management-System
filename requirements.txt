@@ -4,3 +4,4 @@ Werkzeug==3.1.9
 Jinja2==3.1.6
 cryptography==50.0.2
 python-dotenv==1.0.1
+certifi

@@ -31,3 +31,16 @@ VALUES
 (10, 'Pest Control', 'Termites, bedbugs and mosquito issues', 48, 'Medium'),
 (11, 'Bathroom Maintenance', 'Geyser, shower and mirror issues', 36, 'Medium'),
 (12, 'Other', 'Other general complaints', 48, 'Medium');
+
+INSERT IGNORE INTO `users`
+(`user_id`, `email`, `password_hash`, `role`, `first_name`, `last_name`, `phone`, `is_active`)
+VALUES
+(1, 'admin@hostel.edu', 'scrypt:32768:8:1$tcnxbRbbeTL62Gwa$8161a050ccf5e12e9867a7e08624d142da9c955346c0aab73878cedfefa30c12bcd0c056fd59ba24dc9dc6670ae28cdbf8832330786a6cc976a1a70200f4332b', 'admin', 'System', 'Administrator', '9876543210', 1),
+(2, 'warden.sharma@hostel.edu', 'scrypt:32768:8:1$tcnxbRbbeTL62Gwa$8161a050ccf5e12e9867a7e08624d142da9c955346c0aab73878cedfefa30c12bcd0c056fd59ba24dc9dc6670ae28cdbf8832330786a6cc976a1a70200f4332b', 'warden', 'Rajesh', 'Sharma', '9876543211', 1),
+(3, 'warden.patel@hostel.edu', 'scrypt:32768:8:1$tcnxbRbbeTL62Gwa$8161a050ccf5e12e9867a7e08624d142da9c955346c0aab73878cedfefa30c12bcd0c056fd59ba24dc9dc6670ae28cdbf8832330786a6cc976a1a70200f4332b', 'warden', 'Meena', 'Patel', '9876543212', 1),
+(4, 'warden.singh@hostel.edu', 'scrypt:32768:8:1$tcnxbRbbeTL62Gwa$8161a050ccf5e12e9867a7e08624d142da9c955346c0aab73878cedfefa30c12bcd0c056fd59ba24dc9dc6670ae28cdbf8832330786a6cc976a1a70200f4332b', 'warden', 'Harpal', 'Singh', '9876543213', 1),
+(5, 'staff.ramesh@hostel.edu', 'scrypt:32768:8:1$tcnxbRbbeTL62Gwa$8161a050ccf5e12e9867a7e08624d142da9c955346c0aab73878cedfefa30c12bcd0c056fd59ba24dc9dc6670ae28cdbf8832330786a6cc976a1a70200f4332b', 'staff', 'Ramesh', 'Kumar', '9876543220', 1),
+(6, 'staff.suresh@hostel.edu', 'scrypt:32768:8:1$tcnxbRbbeTL62Gwa$8161a050ccf5e12e9867a7e08624d142da9c955346c0aab73878cedfefa30c12bcd0c056fd59ba24dc9dc6670ae28cdbf8832330786a6cc976a1a70200f4332b', 'staff', 'Suresh', 'Verma', '9876543221', 1),
+(7, 'staff.anita@hostel.edu', 'scrypt:32768:8:1$tcnxbRbbeTL62Gwa$8161a050ccf5e12e9867a7e08624d142da9c955346c0aab73878cedfefa30c12bcd0c056fd59ba24dc9dc6670ae28cdbf8832330786a6cc976a1a70200f4332b', 'staff', 'Anita', 'Devi', '9876543222', 1),
+(8, 'staff.vikram@hostel.edu', 'scrypt:32768:8:1$tcnxbRbbeTL62Gwa$8161a050ccf5e12e9867a7e08624d142da9c955346c0aab73878cedfefa30c12bcd0c056fd59ba24dc9dc6670ae28cdbf8832330786a6cc976a1a70200f4332b', 'staff', 'Vikram', 'Joshi', '9876543223', 1);
+

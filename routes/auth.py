@@ -234,7 +234,7 @@ def register():
 def get_rooms_by_hostel(hostel_id):
     """Asynchronous API endpoint providing rooms belonging to a selected hostel."""
     sql = """
-        SELECT room_id, room_number, floor_number, capacity, current_occupancy 
+        SELECT room_id, room_number, floor_number
         FROM rooms 
         WHERE hostel_id = %s 
         ORDER BY floor_number, room_number
